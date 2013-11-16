@@ -10,107 +10,185 @@ Author URI:     http://thingwone.com/aboutme
 License:        undefined
 */
 
-$json = file_get_contents( get_template_directory() . '/schemas/client.json' );
+class TW_FormFactory
+{
+
+	private $json;
+	private $json_object;
+	private $json_form;
+	private $json_schema;
+	
+	
+	public function __construct( $json_obj ) {
 		
-$schema = json_decode($json);
-
-//var_dump($schema);
-
-process_schema( $schema );
-
-
-/**
- * Traverse JSON schema to find any $ref pointers
- *
- * * This function currently implements a recursive function
- * * I feel like it should use the SPL iterative functions
- * * but I'm having trouble implementing them and all my reading
- * * says that it would actually be slower.
- *
- * @uses json_expand_refs
- */
-
-function json_locate_refs( $schema_obj , $header = "" ) {
-	
-	// locate ref pointers and call json_expand_refs t0 replace JSON Schema Object Node with JSON Schema
-	
-	if ( isset( $schema_obj->schema ) ) {
-	
-		// we are at the root level of properties
+		$this->json = $this->json_load_data( $json_obj );
+		$this->json_object = $this->json_decode_data( $this->json );
 		
-		foreach ( $schema_obj->schema->properties as $key => $value ) {
+	}
+	
+	
+	public function json_build_form() {
+	
+		$this->json_locate_refs( $this->json_object );
+		
+	}
+	
+	
+	/**
+	 * Traverse JSON schema to find any $ref pointers
+	 *
+	 * * This function currently implements a recursive function
+	 * * I feel like it should use the SPL iterative functions
+	 * * but I'm having trouble implementing them and all my reading
+	 * * says that it would actually be slower.
+	 *
+	 * @uses json_expand_refs
+	 */
+	
+	public function json_locate_refs( $json_obj , $header = "" ) {
+		
+		// locate ref pointers and call json_expand_refs t0 replace JSON Schema Object Node with JSON Schema
+		
+		if ( isset( $json_obj->schema ) ) {
+		
+			// we are at the root level of properties
 			
-			if ( isset( $value->properties ) ) {
-				// echo $key . ' has additional properties.<br />';
-				json_locate_refs( $value , $key );
+			foreach ( $json_obj->schema->properties as $key => $value ) {
+				
+				if ( isset( $value->properties ) ) {
+					//echo $key . ' has additional properties.<br />';
+					$this->json_locate_refs( $value , $key );
+				}
+				
+				if ( isset( $value->{'$ref'} ) ) {
+				
+					//echo 'I found a JSON ref pointer in ' . $key . '.<br />';
+					
+					$ref = $this->json_parse_ref( $value->{'$ref'} );
+					
+					$ref_schema = $this->json_expand_ref( $ref );
+					
+					$json_obj->schema->properties->$key = $ref_schema->properties;
+					
+				}
 			}
 			
-			if ( isset( $value->{'$ref'} ) ) {
-				echo 'I found a JSON ref pointer in ' . $key . '<br />';
+		} else {
+		
+			foreach ( $json_obj->properties as $key => $value ) {
+			
+				//var_dump($key);
+				//var_dump($value);
+				
+				if ( isset( $value->properties ) ) {
+					//echo $key . ' has additional properties.<br />';
+					$this->json_locate_refs( $value );
+				}
+				
+				if ( $key == '$ref' ) {
+					//echo 'I found a JSON ref pointer in ' . $header . '.<br />';
+				}
+				
 			}
 			
 		}
 		
-	} else {
-	
-		foreach ( $schema_obj->properties as $key => $value ) {
+		//var_dump($schema_obj);
 		
-			//var_dump($key);
-			//var_dump($value);
+	}
+	
+	
+	public function json_parse_ref( $ref ) {
+	
+		var_dump($ref);
+		
+		if ( $ref[0] == '#'  ) {
+		
+			echo 'Internal document definitions reference.<br />';
 			
-			if ( isset( $value->properties ) ) {
-				// echo $key . ' has additional properties.<br />';
-				json_locate_refs( $value );
+			echo 'ref is an document relative pointer<br />';
+			
+		} else {
+		
+			echo 'External JSON document reference<br />';
+			
+			if ( strpos( $ref , '#' ) ) {
+				
+				echo 'External JSON document has an internal Definitions reference.<br />';
+				
+				$doc = strstr( $ref , '#' , true );
+				
+			} else {
+			
+				echo 'External JSON document is stand-alone.<br />';
+				
+				$doc = $ref;
+				
 			}
-			
-			if ( $key == '$ref' ) {
-				echo 'I found a JSON ref pointer in ' . $header . '<br />';
-			}
-			
 		}
 		
-	}
-	
-}
-
-
-/**
- * replace JSON Schema ref pointer by:
- *
- *     1) calling json_parse_ref find replacement JSON Schema Object
- *     2) calling json_get_schema to pull JSON string into a variable
- *     3) replacing ref pointer with JSON string
- *
- * @uses json_parse_ref
- * @uses json_get_schema
- */
-
-function json_expand_refs() {
-	
-	
-	
-}
-
-function json_parse_ref() {}
-
-function json_get_schema() {}
-
-function process_schema( $schema_obj ) {
-
-	// check to make sure the json data has a schema object to work with
-	// convert this to use Exceptions later
-	
-	if ( isset( $schema_obj->schema ) ) {
-	
-		$processed_json = json_locate_refs( $schema_obj );
-	
-	} else {
-	
-		echo 'It appears the JSON Schema you are attempting to use does not contain a schema object.<br />';
+		return $doc;
 		
 	}
 	
+	
+	/**
+	 * Retrieves JSON Schema document from template directory.
+	 *
+	 * Need to build in error handling for malformed JSON Schema documents
+	 */
+	
+	public function json_load_data( $json_obj ) {
+	
+		$json_data = file_get_contents( get_template_directory() . '/schemas/' . $json_obj . '.json' );
+				
+		return $json_data;
+	}
+	
+	
+	private function json_decode_data( $json_data ) {
+		
+		$json_decoded = json_decode( $json_data );
+		
+		return $json_decoded;
+		
+	}
+	
+	
+	/**
+	 * replace JSON Schema ref pointer by:
+	 *
+	 *     1) calling json_parse_ref find replacement JSON Schema Object
+	 *     2) calling json_get_schema to pull JSON string into a variable
+	 *     3) replacing ref pointer with JSON string
+	 *
+	 * @uses json_parse_ref
+	 * @uses json_get_schema
+	 */
+	
+	public function json_expand_ref( $ref ) {
+		
+		$schema = $this->json_load_data( $ref );
+		
+		$schema = $this->json_decode_data( $schema );
+		
+		//var_dump($schema);
+		
+		return $schema;
+		
+	}
+
 }
+
+
+
+
+
+
+
+
+
+
 
 /*
 foreach ( $data->properties as $key => $value ) {
