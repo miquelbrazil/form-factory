@@ -36,7 +36,7 @@ class TW_FormFactory
 	
 		$this->json_locate_refs( $this->json_object );
 		
-		var_dump($this->json_object);
+		//var_dump($this->json_object);
 		
 		return true;
 		
@@ -222,44 +222,3 @@ class TW_FormFactory
 	}
 
 }
-
-
-
-
-
-
-
-
-
-
-
-/*
-foreach ( $data->properties as $key => $value ) {
-	$list = get_object_vars($value);
-	
-	if ( array_key_exists( '$ref' , $list ) ) {
-		// echo 'There is a reference pointer constraint in ' . $key . ' property.<br />';
-		
-		//var_dump($list[ '$ref' ]);*/
-		
-	
-		
-		/*$pointer = file_get_contents( get_template_directory() . '/schemas/' . $list['$ref'] );
-		
-		//var_dump($pointer);
-		
-		$pointer = json_decode($pointer);
-		
-		//var_dump($pointer);
-		
-		$data->properties->$key = $pointer;
-		
-	} else {
-		echo 'There is no reference pointer constraint in ' . $key . ' property.<br />';
-	}
-}*/
-
-
-//var_dump($data);
-
-?>
