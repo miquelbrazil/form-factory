@@ -18,11 +18,16 @@ class TW_FormFactory
 	private $json_form;
 	private $json_schema;
 	
+	private $breadcrumbs;
+	
+	private $html_form;
+	
 	
 	public function __construct( $json_obj ) {
 		
 		$this->json = $this->json_load_data( $json_obj );
 		$this->json_object = $this->json_decode_data( $this->json );
+		$this->breadcrumbs = array();
 		
 	}
 	
@@ -31,96 +36,116 @@ class TW_FormFactory
 	
 		$this->json_locate_refs( $this->json_object );
 		
+		var_dump($this->json_object);
+		
+		return true;
+		
 	}
 	
 	
 	/**
-	 * Traverse JSON schema to find any $ref pointers
+	 * Traverse JSON schema to find and replace any $ref pointers
 	 *
 	 * * This function currently implements a recursive function
 	 * * I feel like it should use the SPL iterative functions
 	 * * but I'm having trouble implementing them and all my reading
 	 * * says that it would actually be slower.
 	 *
+	 * TODO: may have to refactor slightly for practical method of
+	 *       extending refs
+	 *
 	 * @uses json_expand_refs
 	 */
 	
-	public function json_locate_refs( $json_obj , $header = "" ) {
+	public function json_locate_refs( $json_obj ) {
+	
+		//var_dump($json_obj);
 		
-		// locate ref pointers and call json_expand_refs t0 replace JSON Schema Object Node with JSON Schema
+		//echo 'Breadcrumbs before loop:<br />';
 		
-		if ( isset( $json_obj->schema ) ) {
+		//var_dump($this->breadcrumbs);
+	
+		foreach ( $json_obj as $node => $value ) {
 		
-			// we are at the root level of properties
-			
-			foreach ( $json_obj->schema->properties as $key => $value ) {
+			if ( is_array( $value ) ) {
 				
-				if ( isset( $value->properties ) ) {
-					//echo $key . ' has additional properties.<br />';
-					$this->json_locate_refs( $value , $key );
+				if ( array_key_exists( 'properties' , $value ) ) {
+				
+					//echo '<p>Breadcrumbs inside foreach loop:</p>';
+				
+					//var_dump($this->breadcrumbs);
+				
+					//echo $node . ' has additional properties.<br />';
+					
+					//echo '<br />Path to additional properties: <br />';
+					
+					array_push( $this->breadcrumbs , $node , 'properties' );
+					
+					//var_dump( $this->breadcrumbs );
+					
+					$this->json_locate_refs( $value['properties'] );
+					
+				} elseif ( array_key_exists( '$ref' , $value ) ) {
+					
+					//echo 'I found a JSON ref pointer in ' . $node . '.<br />';
+						
+					$ref_parsed = $this->json_parse_ref( $value[ '$ref' ] );    // need to handle nodes
+					
+					array_splice( $this->breadcrumbs , -1 , 1 , array( 'properties' , $node ) );
+					
+					//var_dump($this->breadcrumbs);
+					
+					$ref_schema = $this->json_expand_ref( $ref_parsed , $this->breadcrumbs );
+					
+				} else {
+					
+					//echo '<p>' . $node . ' has no properties.</p>';
+					//var_dump($path);
+					
 				}
 				
-				if ( isset( $value->{'$ref'} ) ) {
+				if ( end($json_obj) == $value  ) {
 				
-					//echo 'I found a JSON ref pointer in ' . $key . '.<br />';
+					//echo "BREADCRUMBS RESET<br /><br />";
 					
-					$ref = $this->json_parse_ref( $value->{'$ref'} );
+					$this->breadcrumbs = array( 'schema' , 'properties' );
 					
-					$ref_schema = $this->json_expand_ref( $ref );
+					//var_dump($this->breadcrumbs);
 					
-					$json_obj->schema->properties->$key = $ref_schema->properties;
-					
-				}
-			}
-			
-		} else {
-		
-			foreach ( $json_obj->properties as $key => $value ) {
-			
-				//var_dump($key);
-				//var_dump($value);
-				
-				if ( isset( $value->properties ) ) {
-					//echo $key . ' has additional properties.<br />';
-					$this->json_locate_refs( $value );
-				}
-				
-				if ( $key == '$ref' ) {
-					//echo 'I found a JSON ref pointer in ' . $header . '.<br />';
 				}
 				
 			}
 			
 		}
 		
-		//var_dump($schema_obj);
-		
 	}
 	
 	
 	public function json_parse_ref( $ref ) {
 	
-		var_dump($ref);
+		//var_dump($ref);
 		
 		if ( $ref[0] == '#'  ) {
 		
-			echo 'Internal document definitions reference.<br />';
+			// echo 'Internal document definitions reference.<br />';
 			
-			echo 'ref is an document relative pointer<br />';
+			// echo 'ref is an document relative pointer<br />';
+			
+			$doc = 'definitions';
 			
 		} else {
 		
-			echo 'External JSON document reference<br />';
+			// echo 'External JSON document reference<br />';
 			
 			if ( strpos( $ref , '#' ) ) {
 				
-				echo 'External JSON document has an internal Definitions reference.<br />';
+				// echo 'External JSON document has an internal Definitions reference.<br />';
 				
 				$doc = strstr( $ref , '#' , true );
 				
 			} else {
 			
-				echo 'External JSON document is stand-alone.<br />';
+				// echo 'External JSON document is stand-alone.<br />';
 				
 				$doc = $ref;
 				
@@ -148,7 +173,9 @@ class TW_FormFactory
 	
 	private function json_decode_data( $json_data ) {
 		
-		$json_decoded = json_decode( $json_data );
+		$json_decoded = json_decode( $json_data , true );
+		
+		//var_dump($json_decoded);
 		
 		return $json_decoded;
 		
@@ -166,15 +193,31 @@ class TW_FormFactory
 	 * @uses json_get_schema
 	 */
 	
-	public function json_expand_ref( $ref ) {
+	public function json_expand_ref( $ref , $breadcrumbs ) {
+	
+		//var_dump($this->json_object);
+		
+		//var_dump($snippet);
+		
+		$target = &$this->json_object;
+		
+		$index = end($breadcrumbs);
+		
+		foreach ( $breadcrumbs as $crumb ) {
+			
+			$target = &$target[$crumb];
+			
+		}
 		
 		$schema = $this->json_load_data( $ref );
 		
 		$schema = $this->json_decode_data( $schema );
 		
-		//var_dump($schema);
+		$target = $schema;
 		
-		return $schema;
+		unset($target);
+		
+		//return $schema;
 		
 	}
 
@@ -199,19 +242,7 @@ foreach ( $data->properties as $key => $value ) {
 		
 		//var_dump($list[ '$ref' ]);*/
 		
-		/**
-		 *    found a ref pointer...now need to find the file
-		 *    The file location should be a string value
-		 *    Will always be contained in the 'schemas' folder of the theme directory.
-		 *    Needs to handle uri's that are in subfolders.
-		 *    Needs to only search for external file if pointer doesn't start with #.
-		 *    RULE: ref pointer objects will be found under 'definitions' object when ref pointer starts
-		 *          with # and is located in the same document.
-		 *    RULE: All external schema URI's will be relative to the 'schema' directory.
-		 *    RULE: External schemas with multiple definitions will be references by a pointer structured as
-		 *          schema.json#definition
-		 *    TODO: Need code to handle these three different situations.
-		 */
+	
 		
 		/*$pointer = file_get_contents( get_template_directory() . '/schemas/' . $list['$ref'] );
 		
