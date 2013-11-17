@@ -220,5 +220,11 @@ class TW_FormFactory
 		//return $schema;
 		
 	}
+	
+	public function json_iterate() {
+		
+		// experiment with the recursive iterator to locate $refs
+		
+	}
 
 }
