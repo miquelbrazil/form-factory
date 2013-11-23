@@ -32,11 +32,9 @@ class TW_FormFactory
 	}
 	
 	
-	public function json_build_form() {
+	public function jsonTestSchemaExpansion() {
 	
 		$this->json_locate_refs( $this->json_object );
-		
-		//var_dump($this->json_object);
 		
 		return true;
 		
@@ -218,6 +216,12 @@ class TW_FormFactory
 		unset($target);
 		
 		//return $schema;
+		
+	}
+	
+	public function json_iterate() {
+		
+		// experiment with the recursive iterator to locate $refs
 		
 	}
 
