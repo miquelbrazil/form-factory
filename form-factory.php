@@ -10,6 +10,8 @@ Author URI:     http://thingwone.com/aboutme
 License:        undefined
 */
 
+require_once('source/base/TW.JsonExtended.class.php');
+
 class TW_FormFactory
 {
 
@@ -34,9 +36,13 @@ class TW_FormFactory
 	
 	public function jsonTestSchemaExpansion() {
 	
+		//var_dump($this->json_object);
+	
 		$this->json_locate_refs( $this->json_object );
 		
-		return true;
+		//var_dump($this->json_object);
+		
+		return $this->json_object;
 		
 	}
 	
