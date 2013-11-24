@@ -35,20 +35,19 @@ class TW_JsonExtended
 		/** @debug START */
 			// var_dump($this->json);
 		/** @debug END */
-		
 	}
 	
 	
 	/**
 	 * Navigates through passed JSON object.
 	 */
-	public function iterate() {
+	public function iterate( $action = array() ) {
 		
 		/** @debug START */
 			echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>jsonIterate has been called.<br />Incrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
 		/** @debug END */
 		
-		/** @type integer Increment counter each time iterator() is called. */
+		/** @type integer Increment function call counter each time iterator() is called. */
 		$this->c++;
 		
 		/** @debug START */
@@ -64,7 +63,11 @@ class TW_JsonExtended
 		/** @type array Initialize JSON object in method scope to instance of JSON object. */
 		$json = $this->json;
 		
-		/** Use path_current property to target specific portion of JSON object in method scope. */
+		/** 
+		 * Use path_current property to target specific portion of JSON object in method scope.
+		 * If this section has already happened then it won't run again when the function returns to a previous cycle.
+		 * Otherwise it would overwrite the JSON data it was handling and start the apocalypse.
+		 */
 		foreach ( $this->path_current as $part ) {
 			
 			/** @debug START */
@@ -72,11 +75,7 @@ class TW_JsonExtended
 			/** @debug END */
 			
 			$json = $json[ $part ];
-			
 		}
-		
-		//var_dump($json);
-		//var_dump($this->c);
 		
 		/**
 		 * Iterate over each element in the passed JSON object.
@@ -93,50 +92,52 @@ class TW_JsonExtended
 				var_dump($v);
 			/** @debug END */
 			
-			/** Ensure we are working with an array */
-			if ( is_array( $v ) ) {
+			/** Initiate LOOKUP & CALLBACK functionality if $action is set */
+			if ( is_array( $action ) && !empty( $action ) ) {
+			
+				var_dump($action);    // inspect action;
 				
-				/** Check if the snippet has any additional properties */
-				if ( array_key_exists( 'properties' , $v ) ) {
-					
-					/** @debug START */
-						echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
-					/** @debug END */
-					
-					/** $type array Set path_previous property to current path so it remembers where we were */
-					$this->path_previous[ $this->c ] = $this->path_current;
-					
-					/** @type string Add target parts to current path property */
-					array_push( $this->path_current , $k , 'properties' );
-					
-					/** @debug START */
-						echo "<p>Running jsonIterate again...</p>";
-					/** @debug END */
-					
-					/** Recursively call iterate() to inspect properties */
-					$this->iterate();
-					
-				} else {
+				/** Select appropriate lookup strategy */
+				if ( $action['search']['method'] == 'key' ) {
 				
-					/** @debug START */
-						echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
-					/** @debug END */
+					echo '<div style="background-color : #1AE6E6 ; padding : 10px;"><p>I\'m searching for a particular key.</p></div>';
 					
+					if ( $action['search']['lookup'] == $k ) {
+						
+						echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
+						$this->doCallback( $action , $v );
+					}
+					
+				} elseif ( $action['search']['method'] == 'value' ) {
+				
+					echo '<div style="background-color : #1AE6E6 ; padding : 10px;"><p>I\'m searching for a particular key within the current object.</p></div>';
+					
+					if ( is_array( $v ) ) {
+						
+						if ( array_key_exists( $action['search']['lookup'] , $v ) ) {
+							
+							echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
+							$this->doCallback( $action , $k );
+							
+						} else {
+							
+							/** @debug START */
+								echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
+							/** @debug END */
+							
+						}
+					} else {
+						
+						/** @debug START */
+							echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
+						/** @debug END */
+					}
 				}
-				
-			} else {
-			
-				/** @debug START */
-					echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
-				/** @debug END */
-				
 			}
-			
 		}
 		
-		
 		/** @debug START */
-			echo "<div style=\"background-color : blue; color : white; padding : 5px;\"><p>We've completed a cycle of the jsonIterator<br />Decrementing the counter by 1.</p><p>The counter currently equals ". $this->c . ":</div>";
+			echo "<div style=\"background-color : blue; color : white; padding : 5px;\"><p>We've completed a cycle of the jsonIterator<br />Decrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
 		/** @debug END */
 		
 		
@@ -157,6 +158,26 @@ class TW_JsonExtended
 			echo "<p>Returning to the original function that called this.</p>";
 		/** @debug END */
 		
+	}
+	
+	
+	/**
+	 * An alternate method for traversing the JSON Forma
+	 * Not fully understanding how to leverage it to pass to other functions
+	 */
+	public function iterateSPL() {
+	 
+	 	$json = new RecursiveArrayIterator( $this->json );
+	
+		$jiterator = new RecursiveIteratorIterator( $json, 2 );
+		
+		/** Need to use identity comparison ( === ) when evaluating values */
+		foreach ( $jiterator as $k => $v ) {
+			
+			var_dump($k);
+			
+		}
+	
 	}
 	
 	
@@ -204,6 +225,60 @@ class TW_JsonExtended
 		
 		return true;
 		
+	}
+	
+	
+	public function resolveRefs() {
+		
+		
+		
+	}
+	
+	
+	public function parseRefs() {
+		
+		
+		
+	}
+	
+	/**
+	 * Prepare and send JSON to callback function for processing
+	 */
+	private function doCallback( $action , $json ) {
+		
+		echo '<div style="background-color : #e0e0e0 ; padding : 10px;"><p>Hello, I\'m preparing the callback function and paramters for you.</p><p>I will use the following paramaters to find the right callback:</p>';
+		var_dump($action);
+		echo '</div>';
+		
+		if ( $action['callback'][0] == '$this' ) {
+			
+			call_user_func_array( array( $this , $action['callback'][1] ) , array( $action , $json ) );
+			
+		} else {
+			
+			call_user_func_array( $action['callback'] , array( $action , $json ) );
+		}
+	}
+	
+	
+	private function preIterate( $action , $k ) {
+		
+		/** @debug START */
+			echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
+		/** @debug END */
+		
+		/** $type array Set path_previous property to current path so it remembers where we were */
+		$this->path_previous[ $this->c ] = $this->path_current;
+		
+		/** @type string Add target parts to current path property */
+		array_push( $this->path_current , $k , 'properties' );
+		
+		/** @debug START */
+			echo "<p>Running jsonIterate again...</p>";
+		/** @debug END */
+		
+		/** Recursively call iterate() to inspect properties */
+		$this->iterate( $action );
 	}
 
 }
