@@ -162,31 +162,6 @@ class TW_FormFactory
 	
 	
 	/**
-	 * Retrieves JSON Schema document from template directory.
-	 *
-	 * Need to build in error handling for malformed JSON Schema documents
-	 */
-	
-	public function json_load_data( $json_obj ) {
-	
-		$json_data = file_get_contents( get_template_directory() . '/schemas/' . $json_obj . '.json' );
-				
-		return $json_data;
-	}
-	
-	
-	private function json_decode_data( $json_data ) {
-		
-		$json_decoded = json_decode( $json_data , true );
-		
-		//var_dump($json_decoded);
-		
-		return $json_decoded;
-		
-	}
-	
-	
-	/**
 	 * replace JSON Schema ref pointer by:
 	 *
 	 *     1) calling json_parse_ref find replacement JSON Schema Object
@@ -222,12 +197,6 @@ class TW_FormFactory
 		unset($target);
 		
 		//return $schema;
-		
-	}
-	
-	public function json_iterate() {
-		
-		// experiment with the recursive iterator to locate $refs
 		
 	}
 

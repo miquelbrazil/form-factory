@@ -10,6 +10,7 @@ class TW_JsonExtended
 {
 
 	public $json;
+	public $forma;
 	
 	/** @type integer Counter determines which iteration on JSON object */
 	public $c = 0;
@@ -17,132 +18,167 @@ class TW_JsonExtended
 	public $path_current = array();
 	public $path_previous = array( 0 => array() );
 	
+	
 	/**
 	 * Sets up JSON Extended object.
 	 */
-	function __construct( $json ) {
+	function __construct( $forma_type ) {
 		
-		echo "<p>We just instantiated the JSON Extended class.</p>";
+		/** @debug START */
+			echo "<p>We just instantiated the JSON Extended class.</p>";
+		/** @debug END */
 		
-		// set instance variable to incoming JSON data
-		$this->json = $json;
+		/** @type array Set instance variable to incoming JSON data */
+		$this->load( $forma_type );
+		$this->decode( $this->forma );
+		
+		/** @debug START */
+			// var_dump($this->json);
+		/** @debug END */
 		
 	}
-
+	
+	
 	/**
 	 * Navigates through passed JSON object.
 	 */
 	public function iterate() {
-	
-		echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>jsonIterate has been called.<br />Incrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
 		
+		/** @debug START */
+			echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>jsonIterate has been called.<br />Incrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
+		/** @debug END */
+		
+		/** @type integer Increment counter each time iterator() is called. */
 		$this->c++;
 		
-		echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
-		
-		echo "Current path on run " . $this->c . ":";
-		var_dump($this->path_current);
-		
-		echo "Previous path(s) on run " . $this->c . ":";
-		var_dump($this->path_previous);
+		/** @debug START */
+			echo "<div style=\"background-color : green; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
+			
+			echo "Current path on run " . $this->c . ":";
+			var_dump($this->path_current);
+			
+			echo "Previous path(s) on run " . $this->c . ":";
+			var_dump($this->path_previous);
+		/** @debug END */
 	
-		//echo "JSON <b>before</b> iteration occurs:";
-		//var_dump($json);
-		
-		if ( empty( $this->path_current ) ) {
-			
-			echo "<p>First run, we need to inspect the 'schema' tree.</p>";
-			
-			// set breadcrumbs to 'schema'
-			$this->path_current[] = 'schema';
-			
-		}
-		
+		/** @type array Initialize JSON object in method scope to instance of JSON object. */
 		$json = $this->json;
 		
-		// use $this->path_current to target specific portion of JSON data
+		/** Use path_current property to target specific portion of JSON object in method scope. */
 		foreach ( $this->path_current as $part ) {
 			
+			/** @debug START */
+				echo "<p>Navigating JSON with <b>" . $part . "</b> key.</p>";
+			/** @debug END */
+			
 			$json = $json[ $part ];
-			
-		}
-		
-		//echo "JSON <b>after</b> iteration occurs:";
-		//var_dump($this->json);
-		//var_dump($json);
-		
-		// check if JSON object has properties
-		if ( array_key_exists( 'properties' , $json ) ) {
-			
-			echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
-			
-			// set $path_previous so it remembers where we were
-			$this->path_previous[ $this->c ] = $this->path_current;
-			
-			echo "<p>Adding 'properties' crumb to breadcrumbs...</p>";
-			// add crumb to breadcrumbs array
-			$this->path_current[] = 'properties';
-			
-			echo "<p>Running jsonIterate again...</p>";
-			// call jsonIterate() to recursively inspect these properties
-			$this->iterate();
 			
 		}
 		
 		//var_dump($json);
 		//var_dump($this->c);
 		
-		if ( $this->c > 1 ) {
+		/**
+		 * Iterate over each element in the passed JSON object.
+		 * This iterator will not iterate over additional values of a schema
+		 * once it locates a properties section (i.e. title, description, required, etc).
+		 */
+		foreach ( $json as $k => $v ) {
 			
-			// if outer JSON object has no properties
-			foreach ( $json as $k => $v ) {
-			
-				echo "<h2>Inside the JSON property loop.</h2>";
+			/** @debug START */
+				echo "<h2>Inside the JSON iterator FOREACH loop.</h2>";
 				
-				echo "<p>The current <b>" . $k . "</b> JSON property:</p>";
+				echo "<p>We are evaluating the <b>" . $k . "</b> JSON property:</p>";
+				
 				var_dump($v);
+			/** @debug END */
 			
-				// check if JSON object has properties
-				if ( array_key_exists( 'properties' , $v ) ) {
+			/** Ensure we are working with an array */
+			if ( is_array( $v ) ) {
 				
-					echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
+				/** Check if the snippet has any additional properties */
+				if ( array_key_exists( 'properties' , $v ) ) {
 					
-					// set $path_previous so it remembers where we were
+					/** @debug START */
+						echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
+					/** @debug END */
+					
+					/** $type array Set path_previous property to current path so it remembers where we were */
 					$this->path_previous[ $this->c ] = $this->path_current;
 					
-					// add crumbs to breadcrumbs array
+					/** @type string Add target parts to current path property */
 					array_push( $this->path_current , $k , 'properties' );
 					
-					echo "<p>Running jsonIterate again...</p>";
-					// call jsonIterate() to recursively inspect these properties
+					/** @debug START */
+						echo "<p>Running jsonIterate again...</p>";
+					/** @debug END */
+					
+					/** Recursively call iterate() to inspect properties */
 					$this->iterate();
 					
+				} else {
+				
+					/** @debug START */
+						echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
+					/** @debug END */
+					
 				}
+				
+			} else {
+			
+				/** @debug START */
+					echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
+				/** @debug END */
 				
 			}
 			
 		}
 		
-		echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>We've completed a cycle of the jsonIterator<br />Decrementing the counter by 1.</p><p>The counter currently equals ". $this->c . ":</div>";
 		
-		// decrement the function call counter after completing a cycle
+		/** @debug START */
+			echo "<div style=\"background-color : blue; color : white; padding : 5px;\"><p>We've completed a cycle of the jsonIterator<br />Decrementing the counter by 1.</p><p>The counter currently equals ". $this->c . ":</div>";
+		/** @debug END */
+		
+		
+		/** @type integer Decrement the function call counter after completing a cycle. */
 		$this->c--;
 		
-		echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
 		
-		// reset the $path
+		/** @debug START */
+			echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
+		/** @debug END */
 		
+		
+		/** @type array Reset the path_current property to previous path. */
 		$this->path_current = $this->path_previous[ $this->c ];
 		
-		echo "<p>Returning to the original function that called this.</p>";
+		
+		/** @debug START */
+			echo "<p>Returning to the original function that called this.</p>";
+		/** @debug END */
 		
 	}
 	
-	public function load() {
+	
+	/**
+	 * Load JSON.
+	 *
+	 * @todo Add error handling for file loading issues.
+	 *
+	 * @param string $forma_type Type of JSON Forma to load.
+	 *
+	 * @return boolean Returns true if file successfully loaded. False otherwise.
+	 */
+	public function load( $forma_type ) {
 		
+		$forma = file_get_contents( get_template_directory() . '/schemas/' . $forma_type . '.jsf' );
 		
+		$this->forma = $forma;
+				
+		return true;
 		
 	}
+	
 	
 	public function encode() {
 		
@@ -150,9 +186,23 @@ class TW_JsonExtended
 		
 	}
 	
-	public function decode() {
+	
+	/**
+	 * Decode JSON.
+	 *
+	 * @todo Add error handling for decode issues.
+	 *
+	 * @param string $json Decodes JSON string.
+	 *
+	 * @return boolean Returns true if successfully decoded. False otherwise.
+	 */
+	public function decode( $json ) {
 		
+		$json_decoded = json_decode( $json , true );
 		
+		$this->json = $json_decoded;
+		
+		return true;
 		
 	}
 
