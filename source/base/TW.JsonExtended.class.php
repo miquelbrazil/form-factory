@@ -242,7 +242,7 @@ class TW_JsonExtended
 	}
 	
 	/**
-	 * Prepare and send JSON to callback function for processing
+	 * Handles callbacks
 	 */
 	private function doCallback( $action , $json ) {
 		
@@ -250,6 +250,8 @@ class TW_JsonExtended
 		var_dump($action);
 		echo '</div>';
 		
+		
+		/** Checks if callback is part of JsonExtended instance or class (static) or another class */
 		if ( $action['callback'][0] == '$this' ) {
 			
 			call_user_func_array( array( $this , $action['callback'][1] ) , array( $action , $json ) );
@@ -261,6 +263,9 @@ class TW_JsonExtended
 	}
 	
 	
+	/**
+	 * Sets class properties when recursively iterating over JSON
+	 */
 	private function preIterate( $action , $k ) {
 		
 		/** @debug START */
