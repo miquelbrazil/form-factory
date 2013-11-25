@@ -1,7 +1,11 @@
 <?php
 
 /**
- * Extends PHP JSON handling for custom applications.
+ * Extends PHP JSON handling for my custom applications.
+ *
+ * I created this class as a superset of functionality to the 
+ * built in PHP JSON handling. This class is primarily used
+ * to parse JSON for use by the TW_Forma class.
  *
  * @author Miquel Brazil <mbrazil@thingwone.com>
  */
@@ -9,8 +13,27 @@
 class TW_JsonExtended
 {
 
-	public $json;
-	public $forma;
+	/**
+	 * The decoded JSON this object works with.
+	 *
+	 * @since 0.0.1
+	 * @access public
+	 * @see TW_JsonExtended::decode()
+	 * @type array $json Defaults as an array rather than an object.
+	 */
+	public $json = null;
+	
+	
+	/**
+	 * The raw JSON string when loaded from a URI.
+	 *
+	 * @since 0.0.1
+	 * @access public
+	 * @see TW_JsonExtended::load()
+	 * @type string $json_raw
+	 * @note Not sure this is absolutely necessary.
+	 */
+	public $json_raw = null;
 	
 	/** @type integer Counter determines which iteration on JSON object */
 	public $c = 0;
@@ -20,23 +43,54 @@ class TW_JsonExtended
 	
 	
 	/**
-	 * Sets up JSON Extended object.
+	 * Initializes JSON Extended object.
+	 *
+	 * @since 0.0.1
+	 * @access public
+	 *
+	 * @uses TW_JsonExtender::load() Loads JSON string if given a URI.
+	 * @uses TW_JsonExtender::decode() Decodes JSON string.
+	 *
+	 * @param mixed $json {
+	 *     JSON data used to initialize object.
+	 *     @type string URI specifying a location for the JSON data.
+	 *     @type string Raw/undecoded JSON string.
+	 *     @type array Decoded JSON object.
+	 * }
+	 *
+	 * @param string $type Optional {
+	 *     Describes the type of JSON data being passed to constructor.
+	 *     Default <'uri'>.
+	 *     Accepts <'uri'> , <'string'> , <'object'>
+	 * }
+	 *
+	 * @todo Add error handling for load and decode functions.
 	 */
-	function __construct( $forma_type ) {
+	function __construct( $json , $type = 'uri' ) {
 		
 		/** @debug START */
 			echo "<p>We just instantiated the JSON Extended class.</p>";
 		/** @debug END */
 		
-		/** Assume if @param is a string then it is a Forma type, Decoded JSON if array. */
-		if ( is_string( $forma_type ) ) {
+		switch ( $type ) {
 			
-			$this->load( $forma_type );
-			$this->decode( $this->forma );
+			case 'uri':
+				
+				$this->load( $json );
+				$this->decode( $this->json_raw );
+				
+				break;
 			
-		} elseif ( is_array( $forma_type ) ) {
+			case 'string':
 			
-			$this->json = $forma_type;
+				$this->decode( $json );
+				break;
+				
+			case 'object':
+			
+				$this->json = $json;
+				
+				break;
 		}
 	}
 	
@@ -193,14 +247,13 @@ class TW_JsonExtended
 	 *
 	 * @return boolean Returns true if file successfully loaded. False otherwise.
 	 */
-	public function load( $forma_type ) {
+	public function load( $uri ) {
 		
-		$forma = file_get_contents( get_template_directory() . '/schemas/' . $forma_type . '.jsf' );
+		$json_raw = file_get_contents( get_template_directory() . '/schemas/' . $uri . '.jsf' );
 		
-		$this->forma = $forma;
-				
+		$this->json_raw = $json_raw;
+		
 		return true;
-		
 	}
 	
 	

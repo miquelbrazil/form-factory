@@ -28,6 +28,8 @@ class TW_Form
 		
 		$forma = new TW_JsonExtended( $forma );
 		
+		//var_dump($forma->json);
+		
 		$action = array( 
 			'search' => array( 'method' => 'key' , 'lookup' => 'schema' ),
 			'callback' => array( 'TW_Form' , 'triageType' )
@@ -46,7 +48,7 @@ class TW_Form
 		var_dump( $json );
 		echo '</div>';
 		
-		$demo = new TW_JsonExtended( $json );
+		$demo = new TW_JsonExtended( $json , 'object' );
 		
 		var_dump($demo->json);
 		
@@ -79,7 +81,7 @@ class TW_Form
 					
 				}
 				
-				$test = new TW_JsonExtended( $json['forma']['properties'] );
+				$test = new TW_JsonExtended( $json['forma']['properties'] , 'object' );
 				
 				$object_action = array( 
 					'search' => array( 'method' => 'value' , 'lookup' => 'type' ),
