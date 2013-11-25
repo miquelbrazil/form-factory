@@ -28,13 +28,16 @@ class TW_JsonExtended
 			echo "<p>We just instantiated the JSON Extended class.</p>";
 		/** @debug END */
 		
-		/** @type array Set instance variable to incoming JSON data */
-		$this->load( $forma_type );
-		$this->decode( $this->forma );
-		
-		/** @debug START */
-			// var_dump($this->json);
-		/** @debug END */
+		/** Assume if @param is a string then it is a Forma type, Decoded JSON if array. */
+		if ( is_string( $forma_type ) ) {
+			
+			$this->load( $forma_type );
+			$this->decode( $this->forma );
+			
+		} elseif ( is_array( $forma_type ) ) {
+			
+			$this->json = $forma_type;
+		}
 	}
 	
 	
@@ -105,7 +108,7 @@ class TW_JsonExtended
 					if ( $action['search']['lookup'] == $k ) {
 						
 						echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
-						$this->doCallback( $action , $v );
+						$this->doCallback( $action , array( $k => $v ) );
 					}
 					
 				} elseif ( $action['search']['method'] == 'value' ) {
@@ -117,7 +120,7 @@ class TW_JsonExtended
 						if ( array_key_exists( $action['search']['lookup'] , $v ) ) {
 							
 							echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
-							$this->doCallback( $action , $k );
+							$this->doCallback( $action , array( $action['search']['lookup'] => $v[$action['search']['lookup']] , 'forma' => $v ) );
 							
 						} else {
 							
@@ -252,13 +255,20 @@ class TW_JsonExtended
 		
 		
 		/** Checks if callback is part of JsonExtended instance or class (static) or another class */
-		if ( $action['callback'][0] == '$this' ) {
+		if ( is_string( $action['callback'] ) && $action['callback'] == 'return' ) {
 			
-			call_user_func_array( array( $this , $action['callback'][1] ) , array( $action , $json ) );
+			return $json;
 			
-		} else {
-			
-			call_user_func_array( $action['callback'] , array( $action , $json ) );
+		} elseif ( is_array( $action['callback'] ) ) {
+		
+			if ( $action['callback'][0] == '$this' ) {
+				
+				call_user_func_array( array( $this , $action['callback'][1] ) , array( $action , $json ) );
+				
+			} else {
+				
+				call_user_func_array( $action['callback'] , array( $action , $json ) );
+			}
 		}
 	}
 	
