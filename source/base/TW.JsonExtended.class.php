@@ -216,27 +216,7 @@ class TW_JsonExtended
 		/** @debug END */
 		
 	}
-	
-	
-	/**
-	 * An alternate method for traversing the JSON Forma
-	 * Not fully understanding how to leverage it to pass to other functions
-	 */
-	public function iterateSPL() {
-	 
-	 	$json = new RecursiveArrayIterator( $this->json );
-	
-		$jiterator = new RecursiveIteratorIterator( $json, 2 );
-		
-		/** Need to use identity comparison ( === ) when evaluating values */
-		foreach ( $jiterator as $k => $v ) {
-			
-			var_dump($k);
-			
-		}
-	
-	}
-	
+
 	
 	/**
 	 * Load JSON.
