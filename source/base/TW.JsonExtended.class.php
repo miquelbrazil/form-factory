@@ -264,9 +264,20 @@ class TW_JsonExtended
 	}
 	
 	
+	/**
+	 * Locate $ref pointers and replace with JSON.
+	 *
+	 * @since 0.0.1
+	 *
+	 * @uses TW_JsonExtended::json The JSON object property of this instance that this method searches.
+	 * @uses TW_JsonExtended::iterate() Recursively searches JSON object property of this instance.
+	 */
 	public function resolveRefs() {
 		
-		
+		$action = array( 
+			'search' => array( 'method' => 'value' , 'lookup' => 'properties' ),
+			'callback' => array( 'TW_Form' , 'triageType' )
+		);
 		
 	}
 	
