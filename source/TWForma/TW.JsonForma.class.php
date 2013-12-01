@@ -1,43 +1,15 @@
 <?php
 
-class TW_Form
+class TW_JsonForma extends TW_JsonSchema
 {
 
-	private static $singleton = null;
-	
-	private $json_form;
-	private static $html_form = '';
-	
-	private function __construct() {
-		
-	}
-	
-	
-	public static function getSingleton() {
-		
-		if ( !isset( self::$singleton ) ) {
-			
-			self::$singleton = new TW_Form();
-		}
-		
-		return self::$singleton;
-	}
-	
+	private $html_form = '';
 	
 	public function renderForm( $forma ) {
 		
-		$forma = new TW_JsonExtended( $forma );
+		$forma = new TW_JsonExtended( $this->forma );
 		
 		//var_dump($forma->json);
-		
-		$action = array( 
-			'search' => array( 'method' => 'key' , 'lookup' => 'schema' ),
-			'callback' => array( 'TW_Form' , 'triageType' )
-		);
-		
-		$forma->iterate( $action );
-		
-		echo self::$html_form;
 		
 	}
 	
