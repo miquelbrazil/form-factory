@@ -35,12 +35,6 @@ class TW_JsonExtended
 	 */
 	public $json_raw = null;
 	
-	/** @type integer Counter determines which iteration on JSON object */
-	public $c = 0;
-	
-	public $path_current = array();
-	public $path_previous = array( 0 => array() );
-	
 	
 	/**
 	 * Initializes JSON Extended object.
@@ -68,16 +62,17 @@ class TW_JsonExtended
 	 */
 	function __construct( $json , $type = 'uri' ) {
 		
-		/** @debug START */
-			echo "<p>We just instantiated the JSON Extended class.</p>";
-		/** @debug END */
-		
 		switch ( $type ) {
 			
 			case 'uri':
 				
-				$this->load( $json );
-				$this->decode( $this->json_raw );
+				$uri = $this->parseUri( $json );
+				$json = $this->load( $uri );
+				$this->json = $json;
+				
+				$json = $this->resolveRefs( $json );
+				
+				$this->json = $json;
 				
 				break;
 			
@@ -93,129 +88,6 @@ class TW_JsonExtended
 				break;
 		}
 	}
-	
-	
-	/**
-	 * Navigates through passed JSON object.
-	 */
-	public function iterate( $action = array() ) {
-		
-		/** @debug START */
-			echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>jsonIterate has been called.<br />Incrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
-		/** @debug END */
-		
-		/** @type integer Increment function call counter each time iterator() is called. */
-		$this->c++;
-		
-		/** @debug START */
-			echo "<div style=\"background-color : green; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
-			
-			echo "Current path on run " . $this->c . ":";
-			var_dump($this->path_current);
-			
-			echo "Previous path(s) on run " . $this->c . ":";
-			var_dump($this->path_previous);
-		/** @debug END */
-	
-		/** @type array Initialize JSON object in method scope to instance of JSON object. */
-		$json = $this->json;
-		
-		/** 
-		 * Use path_current property to target specific portion of JSON object in method scope.
-		 * If this section has already happened then it won't run again when the function returns to a previous cycle.
-		 * Otherwise it would overwrite the JSON data it was handling and start the apocalypse.
-		 */
-		foreach ( $this->path_current as $part ) {
-			
-			/** @debug START */
-				echo "<p>Navigating JSON with <b>" . $part . "</b> key.</p>";
-			/** @debug END */
-			
-			$json = $json[ $part ];
-		}
-		
-		/**
-		 * Iterate over each element in the passed JSON object.
-		 * This iterator will not iterate over additional values of a schema
-		 * once it locates a properties section (i.e. title, description, required, etc).
-		 */
-		foreach ( $json as $k => $v ) {
-			
-			/** @debug START */
-				echo "<h2>Inside the JSON iterator FOREACH loop.</h2>";
-				
-				echo "<p>We are evaluating the <b>" . $k . "</b> JSON property:</p>";
-				
-				var_dump($v);
-			/** @debug END */
-			
-			/** Initiate LOOKUP & CALLBACK functionality if $action is set */
-			if ( is_array( $action ) && !empty( $action ) ) {
-			
-				var_dump($action);    // inspect action;
-				
-				/** Select appropriate lookup strategy */
-				if ( $action['search']['method'] == 'key' ) {
-				
-					echo '<div style="background-color : #1AE6E6 ; padding : 10px;"><p>I\'m searching for a particular key.</p></div>';
-					
-					if ( $action['search']['lookup'] == $k ) {
-						
-						echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
-						$this->doCallback( $action , array( $k => $v ) );
-					}
-					
-				} elseif ( $action['search']['method'] == 'value' ) {
-				
-					echo '<div style="background-color : #1AE6E6 ; padding : 10px;"><p>I\'m searching for a particular key within the current object.</p></div>';
-					
-					if ( is_array( $v ) ) {
-						
-						if ( array_key_exists( $action['search']['lookup'] , $v ) ) {
-							
-							echo '<div style="background-color : gray ; padding : 10px; font-weight : bold; color : white;"><p>I found the key I\'m looking for! Initiating callback...</p></div>';
-							$this->doCallback( $action , array( $action['search']['lookup'] => $v[$action['search']['lookup']] , 'forma' => $v ) );
-							
-						} else {
-							
-							/** @debug START */
-								echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
-							/** @debug END */
-							
-						}
-					} else {
-						
-						/** @debug START */
-							echo "<p>The <b>" . $k . "</b> element is a singular node.<br />There is nothing to iterate over.<p>";
-						/** @debug END */
-					}
-				}
-			}
-		}
-		
-		/** @debug START */
-			echo "<div style=\"background-color : blue; color : white; padding : 5px;\"><p>We've completed a cycle of the jsonIterator<br />Decrementing the counter by 1.</p><p>The counter currently equals ". $this->c . "</div>";
-		/** @debug END */
-		
-		
-		/** @type integer Decrement the function call counter after completing a cycle. */
-		$this->c--;
-		
-		
-		/** @debug START */
-			echo "<div style=\"background-color : red; color : white; padding : 5px;\"><p>The counter now equals ". $this->c . "</div>";
-		/** @debug END */
-		
-		
-		/** @type array Reset the path_current property to previous path. */
-		$this->path_current = $this->path_previous[ $this->c ];
-		
-		
-		/** @debug START */
-			echo "<p>Returning to the original function that called this.</p>";
-		/** @debug END */
-		
-	}
 
 	
 	/**
@@ -223,17 +95,54 @@ class TW_JsonExtended
 	 *
 	 * @todo Add error handling for file loading issues.
 	 *
-	 * @param string $forma_type Type of JSON Forma to load.
+	 * @param array $uri URI of JSON Forma to load.
 	 *
-	 * @return boolean Returns true if file successfully loaded. False otherwise.
+	 * @return string Returns a string of data if file successfully loaded. Returns false otherwise.
 	 */
-	public function load( $uri ) {
+	public function load( $uri , $format = 'decode' ) {
+	
+		$json_raw = '{}';
+		$json_decoded = null;
+	
+		if ( $uri['base'] !== '#' ) {
+			
+			/** Error-handling would happen here */
+			$json_raw = file_get_contents( get_template_directory() . '/schemas/' . $uri['base'] . '.jsf' );
+			
+			if ( $format == 'raw' ) {
+				
+				return $json_raw;
+				
+			} elseif ( $format == 'decode' ) {
+			
+				$json_decoded = $this->decode( $json_raw );
+				
+			}
+			
+		} else {
+			
+			$json_decoded = $this->json;
+		}
+				
+		if ( $uri['path'] && is_object($json_decoded) ) {
+			
+			foreach( $uri['path'] as $p ) {
+				
+				if( property_exists( $json_decoded , $p ) ) {
+					
+					$json_decoded = $json_decoded->$p;
+					
+				} else {
+					
+					/** Entering here means the code could not follow the path. Need to decide what to do. */
+					$json_decoded = null;
+					break;
+				}
+			}
+		}
+				
 		
-		$json_raw = file_get_contents( get_template_directory() . '/schemas/' . $uri . '.jsf' );
-		
-		$this->json_raw = $json_raw;
-		
-		return true;
+		return $json_decoded;
 	}
 	
 	
@@ -253,13 +162,11 @@ class TW_JsonExtended
 	 *
 	 * @return boolean Returns true if successfully decoded. False otherwise.
 	 */
-	public function decode( $json ) {
+	public function decode( $json_raw ) {
 		
-		$json_decoded = json_decode( $json , true );
-		
-		$this->json = $json_decoded;
-		
-		return true;
+		$json_decoded = json_decode( $json_raw );
+				
+		return $json_decoded;
 		
 	}
 	
@@ -271,75 +178,120 @@ class TW_JsonExtended
 	 *
 	 * @uses TW_JsonExtended::json The JSON object property of this instance that this method searches.
 	 * @uses TW_JsonExtended::iterate() Recursively searches JSON object property of this instance.
+	 *
+	 * @return boolean Returns JSON object with resolved $ref pointers.
 	 */
-	public function resolveRefs() {
-		
-		$action = array( 
-			'search' => array( 'method' => 'value' , 'lookup' => 'properties' ),
-			'callback' => array( 'TW_Form' , 'triageType' )
-		);
-		
-	}
+	public function resolveRefs( $json ) {
 	
+		$ref_flag = 0;
 	
-	public function parseRefs() {
+		$json = new RecursiveArrayIterator( $json );
 		
+		$iter = new RecursiveIteratorIterator( $json , 1 );
 		
-		
-	}
-	
-	/**
-	 * Handles callbacks
-	 */
-	private function doCallback( $action , $json ) {
-		
-		echo '<div style="background-color : #e0e0e0 ; padding : 10px;"><p>Hello, I\'m preparing the callback function and paramters for you.</p><p>I will use the following paramaters to find the right callback:</p>';
-		var_dump($action);
-		echo '</div>';
-		
-		
-		/** Checks if callback is part of JsonExtended instance or class (static) or another class */
-		if ( is_string( $action['callback'] ) && $action['callback'] == 'return' ) {
+		foreach ( $iter as $k => $v ) {
 			
-			return $json;
-			
-		} elseif ( is_array( $action['callback'] ) ) {
-		
-			if ( $action['callback'][0] == '$this' ) {
+			if ( is_object( $v ) ) {
 				
-				call_user_func_array( array( $this , $action['callback'][1] ) , array( $action , $json ) );
+				if ( property_exists( $v , '$ref' ) ) {
 				
-			} else {
-				
-				call_user_func_array( $action['callback'] , array( $action , $json ) );
+					$depth = $iter->getDepth();
+					
+					$ref_parsed = $this->parseUri( $v->{'$ref'} );
+					
+					$json_ref = $this->load( $ref_parsed );
+					
+					$iter->getSubIterator($depth)->offsetUnset( $k );
+					$iter->getSubIterator($depth)->offsetSet(  $k , $json_ref );
+					
+					$ref_flag++;
+				}
 			}
 		}
+		
+		/**
+		 * Consider adding a method to a subclassed RecursiveIteratorIterator that 
+		 * converts the JSON object back to plain JSON.
+		 */
+		
+		if ( $ref_flag > 0 ) {
+			$this->resolveRefs( json_decode( json_encode( $iter->getInnerIterator() ) ) );
+		}
+		
+		return json_decode( json_encode( $iter->getInnerIterator() ) );
 	}
 	
 	
 	/**
-	 * Sets class properties when recursively iterating over JSON
+	 *
+	 *
+	 * @todo Include a way to determine what scheme to use to load the URI (i.e http, file, etc).
+	 *
+	 * @return array $uri A parsed URI to a JSON object.
 	 */
-	private function preIterate( $action , $k ) {
+	protected function parseUri( $uri ) {
 		
-		/** @debug START */
-			echo "<p>The JSON object has its own properties. We need to inspect further.</p>";
-		/** @debug END */
+		// var_dump($uri);
 		
-		/** $type array Set path_previous property to current path so it remembers where we were */
-		$this->path_previous[ $this->c ] = $this->path_current;
+		$uri_base = null;
+		$uri_path = null;
+		$uri_scheme = null;
 		
-		/** @type string Add target parts to current path property */
-		array_push( $this->path_current , $k , 'properties' );
+		if ( strpos( $uri , '#' ) === 0 ) {    /** URI refers to an JSON object relative to the root */
 		
-		/** @debug START */
-			echo "<p>Running jsonIterate again...</p>";
-		/** @debug END */
+			// echo '<p>URI refers to an object relative to the JSON Schema\'s root object.</p>';
 		
-		/** Recursively call iterate() to inspect properties */
-		$this->iterate( $action );
+			$uri_base = substr( $uri , 0 , 1 );
+			
+			$uri_path = explode( '/' , substr( $uri , 2 ) );
+			
+			// echo '<p>The base of the URI is:</p>';
+			
+			// var_dump($uri_base);
+			
+			// echo '<p>The path of the URI is:</p>';
+			
+			// var_dump($uri_path);
+			
+		} else {    /** URI refers to an external JSON Schema */
+		
+			if ( strpos( $uri , '#' ) !== false ) {    /** URI refers to an object within the externally referenced JSON Schema */
+				
+				list( $uri_base , $uri_path ) = explode( '#' , $uri );
+				
+				$uri_path = explode( '/' , ltrim( $uri_path , '/' ) );
+				
+				// echo '<p>The base of the URI is:</p>';
+			
+				// var_dump($uri_base);
+				
+				// echo '<p>The path of the URI is:</p>';
+				
+				// var_dump($uri_path);
+				
+			} else {    /** URI simply refers to an external JSON Schema document */
+			
+				$uri_base = $uri;
+				
+				// echo '<p>URI refers to an external JSON Schema.</p>';
+				
+				// echo '<p>The path of the URI is:</p>';
+				
+				// var_dump($uri);
+			}
+		}
+				
+		$uri = array(
+			'base' => $uri_base,
+			'path' => $uri_path
+		);
+		
+		// echo '<p>The URI array for the JSON Schema is:</p>';
+		// var_dump($uri);
+		
+		return $uri;
+		
 	}
-
 }
 
 ?>
