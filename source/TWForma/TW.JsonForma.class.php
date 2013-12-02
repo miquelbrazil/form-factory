@@ -5,11 +5,99 @@ class TW_JsonForma extends TW_JsonSchema
 
 	private $html_form = '';
 	
-	public function renderForm( $forma ) {
+	public $forma_fields = array();
+	
+	public $fields = array();
+	
+	public function render() {
+	
+		$field_path = array();
 		
-		$forma = new TW_JsonExtended( $this->forma );
+		if ( property_exists( $this->json , 'schema' )   ) {
 		
-		//var_dump($forma->json);
+			if ( property_exists( $this->json->schema , 'properties' ) ) {
+				
+				$forma_fields = $this->json->schema->properties;
+				
+				$forma_fields = new RecursiveArrayIterator( $forma_fields );
+				
+				$forma_iter = new RecursiveIteratorIterator( $forma_fields , 1 );
+				
+				foreach( $forma_iter as $k => $v ) {
+				
+					$depth = $forma_iter->getDepth();
+				
+					unset($field_path);
+					
+					$local_fields =& $this->fields;
+					
+					if ( is_object($v) && property_exists( $v , 'type' ) ) {
+						
+						if ( $v->type !== 'object' ) {
+						
+							if ( $depth ) {
+								
+								$d = $depth - 1;
+								
+							} else {
+								
+								//echo '<p>Depth equaled 0.</p>';
+								$d = $depth;
+								
+							}
+							
+							//var_dump($d);
+							
+							do {
+							
+								if ( $d ) {
+									
+									$d = $d - 1;
+									
+								}
+								//var_dump($d);
+								$field_path[] = $forma_iter->getSubIterator($d)->key();
+								$d = $d - 1;
+								//var_dump($d);
+								
+							} while ( $d > 0 );
+							
+							//$a = 'field_path';
+							
+							echo '<p>The current depth is: ' . $depth . '</p>';
+							echo 'The field path is: ';
+							$field_path = array_reverse( $field_path );
+							var_dump($field_path);
+							
+							foreach ( $field_path as $path ) {
+								
+								if ( !array_key_exists( $path , $local_fields ) ) {
+									
+									$local_fields[ $path ] = array();
+									
+								}
+								
+								$local_fields = $local_fields[ $path ];
+								
+							} 
+							
+							var_dump($k , $v);
+							
+						}
+					}
+				}
+				
+			} else {
+				
+				echo '<p>The JSON Schema doesn\'t have any properties.</p>';
+				
+			}
+			
+		} else {
+			
+			echo '<p>JSON Schema doesn\'t have a schema object.</p>';
+			
+		}
 		
 	}
 	
