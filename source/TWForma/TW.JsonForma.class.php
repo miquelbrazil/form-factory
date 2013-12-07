@@ -9,80 +9,28 @@ class TW_JsonForma extends TW_JsonSchema
 	
 	public $fields = array();
 	
-	public function render() {
 	
-		$field_path = array();
+	public function render() {
 		
-		if ( property_exists( $this->json , 'schema' )   ) {
+		if ( property_exists( $this->json , 'schema' ) ) {
 		
 			if ( property_exists( $this->json->schema , 'properties' ) ) {
-				
-				$forma_fields = $this->json->schema->properties;
-				
-				$forma_fields = new RecursiveArrayIterator( $forma_fields );
-				
-				$forma_iter = new RecursiveIteratorIterator( $forma_fields , 1 );
+			
+				$forma_iter = $this->setupIterator( $this->json->schema->properties );
 				
 				foreach( $forma_iter as $k => $v ) {
 				
-					$depth = $forma_iter->getDepth();
-				
-					unset($field_path);
-					
-					$local_fields =& $this->fields;
-					
 					if ( is_object($v) && property_exists( $v , 'type' ) ) {
 						
 						if ( $v->type !== 'object' ) {
 						
-							if ( $depth ) {
-								
-								$d = $depth - 1;
-								
-							} else {
-								
-								//echo '<p>Depth equaled 0.</p>';
-								$d = $depth;
-								
-							}
+							// set fieldpath variable
 							
-							//var_dump($d);
+							$field_path = $this->buildFieldPath( $forma_iter->getDepth() , $forma_iter );
 							
-							do {
+							// render field based on $v
 							
-								if ( $d ) {
-									
-									$d = $d - 1;
-									
-								}
-								//var_dump($d);
-								$field_path[] = $forma_iter->getSubIterator($d)->key();
-								$d = $d - 1;
-								//var_dump($d);
-								
-							} while ( $d > 0 );
-							
-							//$a = 'field_path';
-							
-							echo '<p>The current depth is: ' . $depth . '</p>';
-							echo 'The field path is: ';
-							$field_path = array_reverse( $field_path );
-							var_dump($field_path);
-							
-							foreach ( $field_path as $path ) {
-								
-								if ( !array_key_exists( $path , $local_fields ) ) {
-									
-									$local_fields[ $path ] = array();
-									
-								}
-								
-								$local_fields = $local_fields[ $path ];
-								
-							} 
-							
-							var_dump($k , $v);
-							
+							$this->setField( $field_path , $this->fields , $k , $v  );
 						}
 					}
 				}
@@ -96,10 +44,9 @@ class TW_JsonForma extends TW_JsonSchema
 		} else {
 			
 			echo '<p>JSON Schema doesn\'t have a schema object.</p>';
-			
 		}
-		
 	}
+
 	
 	
 	public static function triageType( $action , $json ) {

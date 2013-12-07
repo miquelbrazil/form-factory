@@ -292,6 +292,80 @@ class TW_JsonSchema
 		return $uri;
 		
 	}
+	
+	
+	protected function setupIterator( $json , $iter = 'RecursiveArrayIterator' , $iter_iter = 'RecursiveIteratorIterator' , $mode = 'SELF_FIRST' ) {
+		
+		if ( !is_array( $json ) && !is_object( $json ) ) {
+		
+			return false;
+		}
+		
+		if ( class_exists( $iter ) ) {
+		
+			$iterator = new $iter( $json );
+			
+			if ( class_exists( $iter_iter ) ) {
+				$iterator_iterator = new $iter_iter( $iterator , constant( 'RecursiveIteratorIterator::'.$mode ) );
+				
+			} else {
+			
+				return false;
+			}
+			
+		} else {
+		
+			return false;
+		}
+		
+		return $iterator_iterator;
+	}
+	
+	
+	protected function buildFieldPath( $depth , $json ) {
+		
+		$field_path = array();
+		
+		if ( $depth ) {
+			$d = $depth - 1;
+		} else {
+			$d = $depth;
+		}
+		
+		do {
+		
+			if ( $d ) {
+				$d = $d - 1;
+			}
+			
+			$field_path[] = $json->getSubIterator( $d )->key();
+			$d = $d - 1;
+			
+		} while ( $d > 0 );
+		
+		return array_reverse( $field_path );
+	}
+	
+	
+	protected function setField( $field_path , &$fields , $field_key , $field ) {
+		
+		foreach ( $field_path as $index => $path ) {
+		
+			if ( !array_key_exists( $path , $fields ) ) {
+				
+				$fields[ $path ] = array();
+			}
+			
+			$fields =& $fields[ $path ];
+			
+			if ( $index === count( $field_path ) - 1 ) {
+				
+				$fields[ $field_key ] = $field;
+			}
+		}
+		
+		return true;
+	}
 }
 
 ?>
