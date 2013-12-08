@@ -11,43 +11,63 @@ class TW_JsonForma extends TW_JsonSchema
 	
 	
 	public function render() {
-		
-		if ( property_exists( $this->json , 'schema' ) ) {
-		
-			if ( property_exists( $this->json->schema , 'properties' ) ) {
 			
-				$forma_iter = $this->setupIterator( $this->json->schema->properties );
+		/** assumes 'form' property exists in JSON Forma object */
+		foreach( $this->json->form as $field_meta ) {
+			
+			$field_path = $this->setFieldPath( $field_meta );
+			
+			$f = $this->getFieldData( $field_path , $this->json );
+			
+			if ( is_object( $f ) ) {
 				
-				foreach( $forma_iter as $k => $v ) {
-				
-					if ( is_object($v) && property_exists( $v , 'type' ) ) {
+				if ( $this->hasProperties( $f ) ) {
+					
+					$f_iter = $this->setupIterator( $f->properties );
+					
+					//var_dump($f_iter);
+					
+					foreach( $f_iter as $k => $v ) {
+					
+						if ( $this->isField( $v ) ) {
 						
-						if ( $v->type !== 'object' ) {
-						
-							// set fieldpath variable
+							$field_loc = $this->setFieldPath( $field_path , $k , $f_iter->getDepth() , $f_iter );
 							
-							$field_path = $this->buildFieldPath( $forma_iter->getDepth() , $forma_iter );
-							
-							// render field based on $v
-							
-							$this->setField( $field_path , $this->fields , $k , $v  );
+							$this->setField( $field_loc , $this->fields , $k , $v  );
 						}
 					}
+					
+				} else {
+					
+					//var_dump($this->isField($f));
+					$this->setField( $field_path , $this->fields , $field_path[ count($field_path)-1 ] , $f  );
 				}
 				
 			} else {
 				
-				echo '<p>The JSON Schema doesn\'t have any properties.</p>';
-				
+				echo '<p>Field is not an object.</p>';
 			}
-			
-		} else {
-			
-			echo '<p>JSON Schema doesn\'t have a schema object.</p>';
 		}
+	}
+	
+	
+	private function renderField( $field_name , $field_object ) {
+		
+		
 	}
 
 	
+	private function typeField( $field_object ) {
+	
+		$field_type = '';
+		
+		if ( $field_object->type == 'string' ) {
+			
+			
+		}
+		
+		return $field_type;
+	}
 	
 	public static function triageType( $action , $json ) {
 	
@@ -111,7 +131,81 @@ class TW_JsonForma extends TW_JsonSchema
 		}
 		
 	}
-
+	
+	
+	private function setFieldPath( $f_meta , $field_key = '' , $depth = 0 , $json = '{}'  ) {
+		
+		if ( is_object( $f_meta ) ) {
+					
+			if ( property_exists( $f_meta , 'key' ) ) {
+				
+				$f_path = explode( '.' , $f_meta->key );
+			}
+			
+		} elseif ( is_string( $f_meta ) ) {
+		
+			if ( $f_meta === '*' ) {
+				
+				$f_path = array();
+				
+			} else {
+			
+				$f_path = explode( '.' , $f_meta );
+			}
+			
+		} elseif ( is_array( $f_meta ) ) {
+			
+			$f_path = $f_meta;
+			
+			$d = 0;
+			do {
+			
+				if ( $d ) {
+					$d = $d + 1;
+				}
+				
+				$f_path[] = $json->getSubIterator( $d )->key();
+				$d = $d + 1;
+				
+			} while ( $d < $depth );
+			
+			if ( $f_path[ count( $f_path ) - 1 ] !== $field_key ) {
+				
+				$f_path[] = $field_key;
+			}
+		
+		} else {
+			
+			return false;
+		}
+		
+		return $f_path;
+	}
+	
+	
+	private function getFieldData( $field_path , $json_s ) {
+		
+		if ( $this->hasSchema( $json_s ) ) {
+		
+			$f_data = $json_s->schema;
+			
+			// return this is path is equal to *
+			
+			foreach( $field_path as $pointer ) {
+				
+				if ( $this->hasProperties( $f_data ) ) {
+					
+					$f_data = $f_data->properties->$pointer;
+				}
+			}
+			
+		} else {
+			
+			echo '<p>Can\'t find schema object.</p>';
+		}
+		
+		return $f_data;
+	}
 }
 
 ?>
