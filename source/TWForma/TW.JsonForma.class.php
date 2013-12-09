@@ -25,8 +25,6 @@ class TW_JsonForma extends TW_JsonSchema
 					
 					$f_iter = $this->setupIterator( $f->properties );
 					
-					//var_dump($f_iter);
-					
 					foreach( $f_iter as $k => $v ) {
 					
 						if ( $this->isField( $v ) ) {
@@ -39,7 +37,14 @@ class TW_JsonForma extends TW_JsonSchema
 					
 				} else {
 					
-					//var_dump($this->isField($f));
+					$field = array( "name" => $field_path[ count($field_path)-1 ] , "def" => $f , "params" => $field_meta );
+					
+					var_dump($field);
+					
+					$field_html = $this->getField( $field );
+					
+					echo $field_html;
+					
 					$this->setField( $field_path , $this->fields , $field_path[ count($field_path)-1 ] , $f  );
 				}
 				
@@ -51,23 +56,112 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
-	private function renderField( $field_name , $field_object ) {
+	private function getField( $field ) {
 		
+		$f_html = '';
+	
+		/** create a isFieldDef() function to determine that all parts are present */
+	
+		$field_type = $this->getField_type( $field );
 		
+		switch( $field_type ) {
+		
+			case 'text':
+				$f_html = $this->getField_text( $field );
+				break;
+			
+			case 'checkbox':
+				$f_html = '<p>Render checkboxes</p>';
+				break;
+				
+			case 'select':
+				$f_html = '<p>Render select field</p>';
+				break;
+			
+			default:
+				$f_html = '<p>I don\'t understand this field type.</p>';
+		}
+				
+		return $f_html;
 	}
 
 	
-	private function typeField( $field_object ) {
+	private function getField_type( $field ) {
 	
 		$field_type = '';
 		
-		if ( $field_object->type == 'string' ) {
+		if ( property_exists( $field['params'] , 'type' ) ) {
 			
+			/** include error-checking to ensure type valid */
+			$field_type = $field['params']->type;
 			
+		} else {
+			
+			if ( property_exists( $field['def'] , 'type' ) ) {
+			
+				$type = $field['def']->type;
+				
+				if ( $type == 'string' || $type == 'number' || $type == 'integer' ) {
+					
+					if ( property_exists( $field['def'] , 'enum' ) ) {
+						
+						$field_type = 'select';
+						
+					} else {
+					
+						$field_type = 'text';
+					}
+					
+				} elseif ( $type == 'boolean' || $type == 'array' ) {
+					
+					$field_type = 'checkbox';
+				}
+			}
+		}
+		
+		if ( empty( $field_type ) ) {
+			
+			$field_type = '<p>Field type could not be determined.</p>';
 		}
 		
 		return $field_type;
 	}
+	
+	
+	private function getField_text( $field ) {
+	
+		$html = array();
+		
+		if ( $this->showLabel( $field['params'] ) ) {
+			
+			$html['label'] = $this->getField_label( $field );
+		}
+		
+		return '<p>Render text field</p>';
+	}
+	
+	
+	private function showLabel( $f_params ) {
+	
+		if ( property_exists( $f_params , 'label' ) ) {
+			
+			if ( !$f_params->label ) {
+				
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	
+	private function getField_label( $field ) {
+	
+		$html = '';
+		
+		return $html;
+	}
+	
 	
 	public static function triageType( $action , $json ) {
 	
