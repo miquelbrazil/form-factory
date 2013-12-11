@@ -11,13 +11,36 @@ class TW_JsonForma extends TW_JsonSchema
 	
 	
 	public function render() {
+	
+		$fields_p = $this->getField_paths( $this->json->form->fields );
+		
+		var_dump($fields_p);
+		
+		$fields_l = $this->getField_limits( $fields_p );
+		
+		//var_dump($fields_l);
 			
 		/** assumes 'form' property exists in JSON Forma object */
-		foreach( $this->json->form as $field_meta ) {
+		foreach( $this->json->form->fields as $field_meta ) {
+		
+			$field_id = $this->getField_id( $field_meta );
 			
-			$field_path = $this->setFieldPath( $field_meta );
+			var_dump($field_id);
 			
-			$f = $this->getFieldData( $field_path , $this->json );
+			//$field_path = $this->setFieldPath( $field_meta );
+			
+			$field_path_def = $fields_p[ $field_id ]['def'];
+			
+			if ( empty( $fields_p[ $field_id ]['dest'] ) ) {
+				
+				$field_path_dest = $field_path_def;
+				
+			} else {
+				
+				$field_path_dest = $fields_p[ $field_id ]['dest'];
+			}
+			
+			$f = $this->getFieldData( $field_path_def , $this->json );
 			
 			if ( is_object( $f ) ) {
 				
@@ -29,28 +52,38 @@ class TW_JsonForma extends TW_JsonSchema
 					
 						if ( $this->isField( $v ) ) {
 						
-							$field_loc = $this->setFieldPath( $field_path , $k , $f_iter->getDepth() , $f_iter );
+							$field_loc = $this->setFieldPath( $field_path_dest , $k , $f_iter->getDepth() , $f_iter );
 							
-							$this->setField( $field_loc , $this->fields , $k , $v  );
+							//var_dump(implode( '.' , $field_loc));
+							
+							if ( !in_array( implode( '.' , $field_loc) , $fields_l ) ) {
+							
+								$field = array( "name" => $k , "def" => $v , "params" => $field_meta );
+								
+								//var_dump($field);
+								$field_html = $this->getField( $field );
+								
+								$this->setField( $field_loc , $this->fields , $k , $field_html  );
+							}
 						}
 					}
 					
 				} else {
 					
-					$field = array( "name" => $field_path[ count($field_path)-1 ] , "def" => $f , "params" => $field_meta );
+					$field = array( "name" => $field_path_def[ count($field_path_def)-1 ] , "def" => $f , "params" => $field_meta );
 					
-					var_dump($field);
+					//var_dump($field);
 					
 					$field_html = $this->getField( $field );
 					
-					echo $field_html;
+					//echo $field_html;
 					
-					$this->setField( $field_path , $this->fields , $field_path[ count($field_path)-1 ] , $f  );
+					$this->setField( $field_path_dest , $this->fields , $field_path_def[ count($field_path_def)-1 ] , $field_html  );
 				}
 				
 			} else {
 				
-				echo '<p>Field is not an object.</p>';
+				echo '<p>Field should be an object.</p>';
 			}
 		}
 	}
@@ -84,7 +117,102 @@ class TW_JsonForma extends TW_JsonSchema
 				
 		return $f_html;
 	}
-
+	
+	
+	private function getField_paths( $fields ) {
+		
+		$field_paths = array();
+		
+		foreach( $fields as $field ) {
+			
+			$key = $this->getField_id( $field );
+			
+			$definition_path = $this->setFieldPath( $field );
+			
+			/*$c = count( $path );
+			
+			if ( $c == 1 ) {
+				
+				$key = $path[0];
+				
+			} elseif ( $c > 1 ) {
+				
+				$key = $path[ $c - 1 ];
+			}*/
+			
+			$field_paths[ $key ][ 'def' ] = $definition_path;
+			
+			if ( is_object( $field ) ) {
+				
+				if ( property_exists( $field , 'regroup' ) ) {
+					
+					$destination_path = $this->setFieldPath( $field->regroup );
+					
+					if ( $destination_path ) {
+						
+						$field_paths[ $key ][ 'dest' ] = $destination_path;
+					}
+				} else {
+					
+					$field_paths[ $key ][ 'dest' ] = array();
+				}
+				
+			} else {
+				
+				$field_paths[ $key ][ 'dest' ] = array();
+			}
+		}
+		
+		return $field_paths;
+	}
+	
+	
+	private function getField_limits( $field_paths ) {
+		
+		$field_limits = array();
+		
+		foreach ( $field_paths as $path ) {
+			
+			$c = count( $path['def'] );
+			
+			if ( $c > 1 ) {
+				
+				$field_limits[] = implode( '.' , $path['def'] );
+			}
+		}
+		
+		return $field_limits;
+	}
+	
+	
+	/** get the name/id of the field to find it's path */
+	private function getField_id ( $field ) {
+		
+		$f_id = '';
+		
+		if ( is_object( $field ) ) {
+					
+			if ( property_exists( $field , 'key' ) ) {
+				
+				$f_id = $field->key;
+			}
+			
+		} elseif ( is_string( $field ) ) {
+		
+			if ( $field === '*' ) {
+				
+				$f_id = 'all';
+				
+			} else {
+			
+				$f_id = $field;
+			}
+			
+		}
+		
+		return $f_id;		
+	}
+	
 	
 	private function getField_type( $field ) {
 	
@@ -132,12 +260,16 @@ class TW_JsonForma extends TW_JsonSchema
 	
 		$html = array();
 		
+		$id = $field['name'];
+		
 		if ( $this->showLabel( $field['params'] ) ) {
 			
 			$html['label'] = $this->getField_label( $field );
 		}
 		
-		return '<p>Render text field</p>';
+		$html['field'] = '<input type="text" id="' . $id . '" name="' . $id . '" />';
+		
+		return implode( $html );
 	}
 	
 	
@@ -158,6 +290,20 @@ class TW_JsonForma extends TW_JsonSchema
 	private function getField_label( $field ) {
 	
 		$html = '';
+		
+		$for_id = $field['name'];
+		
+		if ( property_exists( $field['def'] , 'title' ) ) {
+			
+			$label = $field['def']->title;
+			
+		} else {
+			
+			$label = $field['name'];
+		}
+		
+		
+		$html = '<label for="' . $for_id . '">' . $label . '</label>';
 		
 		return $html;
 	}
