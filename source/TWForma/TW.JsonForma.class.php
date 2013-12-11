@@ -14,20 +14,12 @@ class TW_JsonForma extends TW_JsonSchema
 	
 		$fields_p = $this->getField_paths( $this->json->form->fields );
 		
-		var_dump($fields_p);
-		
 		$fields_l = $this->getField_limits( $fields_p );
-		
-		//var_dump($fields_l);
 			
 		/** assumes 'form' property exists in JSON Forma object */
 		foreach( $this->json->form->fields as $field_meta ) {
 		
 			$field_id = $this->getField_id( $field_meta );
-			
-			var_dump($field_id);
-			
-			//$field_path = $this->setFieldPath( $field_meta );
 			
 			$field_path_def = $fields_p[ $field_id ]['def'];
 			
@@ -54,13 +46,10 @@ class TW_JsonForma extends TW_JsonSchema
 						
 							$field_loc = $this->setFieldPath( $field_path_dest , $k , $f_iter->getDepth() , $f_iter );
 							
-							//var_dump(implode( '.' , $field_loc));
-							
 							if ( !in_array( implode( '.' , $field_loc) , $fields_l ) ) {
 							
 								$field = array( "name" => $k , "def" => $v , "params" => $field_meta );
 								
-								//var_dump($field);
 								$field_html = $this->getField( $field );
 								
 								$this->setField( $field_loc , $this->fields , $k , $field_html  );
@@ -72,11 +61,7 @@ class TW_JsonForma extends TW_JsonSchema
 					
 					$field = array( "name" => $field_path_def[ count($field_path_def)-1 ] , "def" => $f , "params" => $field_meta );
 					
-					//var_dump($field);
-					
 					$field_html = $this->getField( $field );
-					
-					//echo $field_html;
 					
 					$this->setField( $field_path_dest , $this->fields , $field_path_def[ count($field_path_def)-1 ] , $field_html  );
 				}
