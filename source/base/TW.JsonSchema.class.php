@@ -73,7 +73,6 @@ class TW_JsonSchema
 				$json = $this->resolveRefs( $json );
 				
 				$this->json = $json;
-				
 				break;
 			
 			case 'string':
@@ -306,6 +305,7 @@ class TW_JsonSchema
 			$iterator = new $iter( $json );
 			
 			if ( class_exists( $iter_iter ) ) {
+			
 				$iterator_iterator = new $iter_iter( $iterator , constant( 'RecursiveIteratorIterator::'.$mode ) );
 				
 			} else {

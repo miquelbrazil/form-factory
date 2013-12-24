@@ -9,10 +9,14 @@ class TW_JsonForma extends TW_JsonSchema
 	
 	public $fields = array();
 	
+	public $forma = array();
+	
 	
 	public function render() {
 	
 		$fields_p = $this->getField_paths( $this->json->form->fields );
+		
+		$this->forma = $fields_p;
 		
 		$fields_l = $this->getField_limits( $fields_p );
 			
@@ -61,6 +65,8 @@ class TW_JsonForma extends TW_JsonSchema
 					
 					$field = array( "name" => $field_path_def[ count($field_path_def)-1 ] , "def" => $f , "params" => $field_meta );
 					
+					//var_dump($field);
+					
 					$field_html = $this->getField( $field );
 					
 					$this->setField( $field_path_dest , $this->fields , $field_path_def[ count($field_path_def)-1 ] , $field_html  );
@@ -71,16 +77,248 @@ class TW_JsonForma extends TW_JsonSchema
 				echo '<p>Field should be an object.</p>';
 			}
 		}
+		
+		$form = json_encode($this->fields);
+		$form = json_decode($form);
+		
+		var_dump($form);
+		
+		$form_iter = $this->setupIterator( $form , 'RecursiveArrayIterator' , 'RecursiveIteratorIterator' , 'CHILD_FIRST' );
+		
+		$forma = $this->json->form->fields;
+		
+		//var_dump($fields_p);
+		
+		foreach ( $form_iter as $k => $v ) {
+			
+			$html = '';
+			
+			$path = implode( '.' , $this->setFieldPath( array() , $k , $form_iter->getDepth() , $form_iter ) );
+			
+			$tags['group'] = $this->getTags( $path , 'group' );
+			$tags['collection'] = '';
+			
+			
+			var_dump($form_iter->getDepth());
+			var_dump($k);
+			var_dump($v);
+				
+			/** this should wrap collections not groups */
+			if ( $form_iter->getDepth() == 0 ) {
+			
+				echo 'There are ' . count( (array)$v ) . ' element(s) in this object';
+				
+				if ( is_object( $v ) ) {
+					
+					foreach ( $v as $value ) {
+						
+						$html .= $value;
+					}
+					
+				} else {
+					
+					$html = $v;
+				}
+				
+				if ( !empty( $tags['group'] ) ) {
+						
+					$html = $tags['group']['open'] . $html . $tags['group']['close'];
+				}
+				
+			} else {
+				
+				if ( is_object( $v ) ) {
+					
+					foreach ( $v as $value ) {
+						
+						$html .= $value;
+					}
+					
+					$html = '<dl>' . $html . '</dl>';
+					
+				} else {
+					
+					$html = $v;
+				}
+			}
+			
+			
+			
+			$form_iter->getSubIterator($form_iter->getDepth())->offsetSet( $k , $html );
+		}
+		
+		echo implode( iterator_to_array( $form_iter->getInnerIterator() ) );
+		
+	}
+	
+	/**
+	 * types of tags
+	 * tag_collection - Collection Tag - wraps the entire collection of similar fields - default: <fieldset>
+	 * tag_group - Group Tag - wraps a group of related label/input pairs - default: <dl> ( could also be <ol>, <ul>)
+	 * tag_pair - Pair Tag - wraps label/input pairs - no default becuase this would be used for nested list or tables <tr>
+	 * tag_label - Label Tag - wraps a input field label - default: <dt> ( could also be <li> )
+	 * tag_input - Input Tag - wraps a input field - default: <dd> ( could also be <li> )
+	 */
+	private function getTags( $forma , $tag_type ) {
+		
+		$tags = array();
+		
+		switch ( $tag_type ) {
+			
+			case 'input':
+				$tags = $this->getTags_input( $forma );
+				break;
+				
+			case 'label':
+				$tags = $this->getTags_label( $forma );
+				break;
+			
+			case 'pair':
+				$tags = $this->getTags_pair( $forma );
+				break;
+			
+			case 'group':
+				$tags = $this->getTags_group( $forma );
+				break;
+				
+			case 'collection':
+				break;
+			
+		}
+		
+		return $tags;
+	}
+	
+	
+	/**
+	 * default wrap tag for labels is <dt>
+	 */
+	private function getTags_label( $field_params ) {
+		
+		$tag_label = array();
+		
+		if ( property_exists( $field_params , 'tag_input' ) ) {
+			
+			if ( !property_exists( $field_params , 'tag_label' ) ) {
+				
+				$tag = $field_params->tag_input;
+				
+			} else {
+				
+				$tag = $field_params->tag_label;
+			}
+			
+		} elseif ( property_exists( $field_params , 'tag_label' ) ) {
+			
+			$tag = $field_params->tag_label;
+			
+		} else {
+			
+			$tag = 'dt';
+			
+		}
+		
+		$tag_label['open'] = '<' . $tag . '>';
+		$tag_label['close'] = '</' . $tag . '>';
+		
+		return $tag_label;
+	}
+	
+	
+	/**
+	 * default wrap tag for input is <dd>
+	 */
+	private function getTags_input( $forma ) {
+		
+		$tag_input = array();
+		
+		if ( property_exists( $forma , 'tag_label' ) ) {
+			
+			if ( !property_exists( $forma , 'tag_input' ) ) {
+				
+				$tag = $forma->tag_label;
+				
+			} else {
+				
+				$tag = $forma->tag_input;
+			}
+			
+		} elseif ( property_exists( $forma , 'tag_input' ) ) {
+			
+			$tag = $forma->tag_input;
+			
+		} else {
+			
+			$tag = 'dd';
+			
+		}
+		
+		$tag_input['open'] = '<' . $tag . '>';
+		$tag_input['close'] = '</' . $tag . '>';
+		
+		return $tag_input;
+	}
+	
+	
+	private function getTags_group( $forma_path ) {
+		
+		$tag_group = array();
+		
+		$tag = '';
+		
+		if ( array_key_exists( $forma_path , $this->forma ) ) {
+			
+			if ( property_exists( $this->forma[ $forma_path ]['params'] , 'tag_group' ) ) {
+				
+				$tag = $this->forma[ $forma_path ]['params']->tag_group;
+				
+			}
+		}
+		
+		if ( empty( $tag ) ) {
+			
+			$tag = 'fieldset';
+		}
+		
+		if ( $tag ) {
+			
+			$tag_group['open'] = '<' . $tag . '>';
+			$tag_group['close'] = '</' . $tag . '>';
+		}
+		
+		return $tag_group;
+	}
+	
+	
+	private function wrapFields ( &$fields ) {
+	
+		$more = false;
+		
+		foreach ( $fields as $field ) {
+			
+			if ( is_array( $field ) ) {
+				
+				$this->wrapFields( $field );
+				
+			} else {
+				
+				$fields[ $key ] = '<fieldset>' . $field . '</fieldset>';
+			}
+		}
 	}
 	
 	
 	private function getField( $field ) {
+	
+		//var_dump( $field );
 		
 		$f_html = '';
 	
 		/** create a isFieldDef() function to determine that all parts are present */
 	
 		$field_type = $this->getField_type( $field );
+		
+		$tags['pair'] = $this->getTags( $field['params'] , 'pair' );
 		
 		switch( $field_type ) {
 		
@@ -99,6 +337,19 @@ class TW_JsonForma extends TW_JsonSchema
 			default:
 				$f_html = '<p>I don\'t understand this field type.</p>';
 		}
+		
+		
+		if ( !empty( $tags['pair'] ) ) {
+			
+			$f_html = $tags['pair']['open'] . implode( $f_html ) . $tags['pair']['close'];
+			
+		} else {
+			
+			if ( is_array( $f_html ) ) {
+				
+				$f_html = implode( $f_html );
+			}
+		}
 				
 		return $f_html;
 	}
@@ -109,21 +360,10 @@ class TW_JsonForma extends TW_JsonSchema
 		$field_paths = array();
 		
 		foreach( $fields as $field ) {
-			
+		
 			$key = $this->getField_id( $field );
 			
 			$definition_path = $this->setFieldPath( $field );
-			
-			/*$c = count( $path );
-			
-			if ( $c == 1 ) {
-				
-				$key = $path[0];
-				
-			} elseif ( $c > 1 ) {
-				
-				$key = $path[ $c - 1 ];
-			}*/
 			
 			$field_paths[ $key ][ 'def' ] = $definition_path;
 			
@@ -137,15 +377,22 @@ class TW_JsonForma extends TW_JsonSchema
 						
 						$field_paths[ $key ][ 'dest' ] = $destination_path;
 					}
+					
 				} else {
 					
 					$field_paths[ $key ][ 'dest' ] = array();
 				}
 				
+				$field_paths[ $key ]['params'] = $field;
+				
 			} else {
 				
 				$field_paths[ $key ][ 'dest' ] = array();
+				
+				$field_paths[ $key ]['params'] = new stdClass();
 			}
+			
+			
 		}
 		
 		return $field_paths;
@@ -244,17 +491,58 @@ class TW_JsonForma extends TW_JsonSchema
 	private function getField_text( $field ) {
 	
 		$html = array();
+		$tags = array();
 		
 		$id = $field['name'];
+		
+		$tags['input'] = $this->getTags( $field['params'] , 'input' );
 		
 		if ( $this->showLabel( $field['params'] ) ) {
 			
 			$html['label'] = $this->getField_label( $field );
 		}
 		
-		$html['field'] = '<input type="text" id="' . $id . '" name="' . $id . '" />';
 		
-		return implode( $html );
+		$html['input'] = '<input type="text" id="' . $id . '" name="' . $id . '" />';
+		
+		if ( !empty( $tags['input'] ) ) {
+			
+			$html['input'] = $tags['input']['open'] . $html['input'] . $tags['input']['close'];
+		}
+		
+		return $html;
+	}
+	
+	
+	private function getTags_pair( $forma ) {
+		
+		$tag_pair = array();
+		
+		$tag = '';
+		
+		if ( property_exists( $forma , 'tag_pair' ) ) {
+			
+			$tag = $forma->tag_pair;
+			
+		} else {
+			
+			$tag = '';    // explicitly sets default tag
+		}
+		
+		if ( !empty( $tag ) ) {
+			
+			$tag_pair['open'] = '<' . $tag . '>';
+			$tag_pair['close'] = '</' . $tag . '>';
+		}
+		
+		return $tag_pair;
+	}
+	
+	
+	private function getField_tags( $field ) {
+		
+		
+		
 	}
 	
 	
@@ -272,13 +560,33 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
+	/**
+	 * Label values are defined in the 'title' property of the JSON Schema's field definition
+	 * These values can be redefined in the Forma object
+	 * this method checks the redefinition first and if it isn't present it uses the title property
+	 * if this isn't present it uses the generated name of the field as the label
+	 */
 	private function getField_label( $field ) {
 	
 		$html = '';
 		
 		$for_id = $field['name'];
 		
-		if ( property_exists( $field['def'] , 'title' ) ) {
+		$tags = $this->getTags( $field['params'] , 'label' );
+		
+		
+		if ( property_exists( $field['params'] , 'label' ) ) {
+			
+			if ( is_string( $field['params']->label ) ) {
+				
+				$label = $field['params']->label;
+				
+			} else {
+				
+				/** redefined label property is not a string **/
+			}
+			
+		} elseif ( property_exists( $field['def'] , 'title' ) ) {
 			
 			$label = $field['def']->title;
 			
@@ -288,7 +596,14 @@ class TW_JsonForma extends TW_JsonSchema
 		}
 		
 		
+		
 		$html = '<label for="' . $for_id . '">' . $label . '</label>';
+		
+		if ( !empty($tags) ) {
+			
+			$html = $tags['open'] . $html . $tags['close'];
+		}
+		
 		
 		return $html;
 	}
@@ -403,6 +718,8 @@ class TW_JsonForma extends TW_JsonSchema
 			
 			return false;
 		}
+		
+		/** add code to return a string form of the path */
 		
 		return $f_path;
 	}
