@@ -293,7 +293,7 @@ class TW_JsonSchema
 	}
 	
 	
-	protected function setupIterator( $json , $iter = 'RecursiveArrayIterator' , $iter_iter = 'RecursiveIteratorIterator' , $mode = 'SELF_FIRST' ) {
+	protected function getIterator( $json , $iter = 'RecursiveArrayIterator' , $iter_iter = 'RecursiveIteratorIterator' , $mode = 'SELF_FIRST' ) {
 		
 		if ( !is_array( $json ) && !is_object( $json ) ) {
 		
@@ -343,27 +343,6 @@ class TW_JsonSchema
 		}
 		var_dump($field_path);
 		return $field_path;
-	}
-	
-	
-	protected function setField( $field_path , &$fields , $field_key , $field ) {
-		
-		foreach ( $field_path as $index => $path ) {
-		
-			if ( !array_key_exists( $path , $fields ) ) {
-				
-				$fields[ $path ] = array();
-			}
-			
-			$fields =& $fields[ $path ];
-			
-			if ( $index === count( $field_path ) - 1 ) {
-				
-				$fields = $field;
-			}
-		}
-		
-		return true;
 	}
 	
 	
