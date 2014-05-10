@@ -10,7 +10,7 @@
  * @author Miquel Brazil <mbrazil@thingwone.com>
  */
 
-class TW_JsonExtended
+class TW_JsonSchema
 {
 
 	/**
@@ -73,7 +73,6 @@ class TW_JsonExtended
 				$json = $this->resolveRefs( $json );
 				
 				$this->json = $json;
-				
 				break;
 			
 			case 'string':
@@ -291,6 +290,117 @@ class TW_JsonExtended
 		
 		return $uri;
 		
+	}
+	
+	
+	protected function getIterator( $json , $iter = 'RecursiveArrayIterator' , $iter_iter = 'RecursiveIteratorIterator' , $mode = 'SELF_FIRST' ) {
+		
+		if ( !is_array( $json ) && !is_object( $json ) ) {
+		
+			return false;
+		}
+		
+		if ( class_exists( $iter ) ) {
+		
+			$iterator = new $iter( $json );
+			
+			if ( class_exists( $iter_iter ) ) {
+			
+				$iterator_iterator = new $iter_iter( $iterator , constant( 'RecursiveIteratorIterator::'.$mode ) );
+				
+			} else {
+			
+				return false;
+			}
+			
+		} else {
+		
+			return false;
+		}
+		
+		return $iterator_iterator;
+	}
+	
+	
+	protected function buildFieldPath( $field_path , $field_key , $depth , $json ) {
+		
+		$d = 0;
+		
+		do {
+		
+			if ( $d ) {
+				$d = $d + 1;
+			}
+			
+			$field_path[] = $json->getSubIterator( $d )->key();
+			$d = $d + 1;
+			
+		} while ( $d < $depth );
+		
+		if ( $field_path[ count( $field_path ) - 1 ] !== $field_key ) {
+			
+			$field_path[] = $field_key;
+		}
+		var_dump($field_path);
+		return $field_path;
+	}
+	
+	
+	protected function hasSchema( $json_s ) {
+		
+		if ( property_exists( $this->json , 'schema' ) ) {
+			
+			return true;
+			
+		} else {
+			
+			return false;
+		}
+	}
+	
+	
+	protected function hasProperties( $json_s ) {
+		
+		if ( !property_exists( $json_s , 'type' ) || !property_exists( $json_s , 'properties' ) ) {
+			
+			/** JSON 'type' property is not set to object and/or 'properties' property contains no data */
+			//echo '<p>This object has no type or properties.</p>';
+			return false;
+			
+		} else {
+		
+			if ( $json_s->type !== 'object' || empty( $json_s->properties ) ) {
+				
+				/** JSON is missing 'type' and/or 'properties' properties */
+				//echo '<p>This object is not the correct type or has no properties.</p>';
+				return false;
+			}
+		}
+		
+		//echo '<p>This object has properties.</p>';
+		return true;
+	}
+	
+	
+	protected function isField( $json_s ) {
+		//var_dump($json_s);
+		
+		if ( !is_object( $json_s ) || !property_exists( $json_s , 'type' ) ) {
+			
+			/** JSON snippet is not a PHP object and/or is missing a 'type' property */
+			return false;
+								
+		} else {
+			
+			if ( $json_s->type === 'object' ) {
+				
+				/** JSON snippet's 'type' property is something other than 'object' */
+				return false;
+			}
+		}
+		
+		/** JSON snippet is a JSON Schema Object */
+		return true;
 	}
 }
 

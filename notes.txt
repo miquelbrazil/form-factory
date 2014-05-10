@@ -1,0 +1,16 @@
+Form Building Psuedocode
+
+Forma object is retrieved from the Fields array within the Form object of the JSON Schema.
+
+The Forma is looped through and used to locate each field or field group. Each iteration is known as a Formi.
+
+Definitions
+
+Schema - a collection of Schemes that translates into individual fields with the combination of corresponding Formi data
+Scheme - an individual field definition
+Forma
+Formi - a single element of the Formas, will be either a string or object
+Field 
+Fields - collection of fields packaged with meta information from both the schema, forma or both. Always an array.
+Form
+JSON Scheforma - string object that contains both JSON Schema and Forma information
