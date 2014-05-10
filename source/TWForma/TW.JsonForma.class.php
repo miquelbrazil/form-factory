@@ -9,23 +9,52 @@ class TW_JsonForma extends TW_JsonSchema
 	
 	public $fields = array();
 	
+	public $form = '';
+	
+	public $form_fields = array();
+	
+	public $forma_directory = array();
+	
 	public $forma = array();
+	
+	public $forma_fields_defined = array();
+	
+	
+	public function __construct( $json ) {
+		
+		parent::__construct( $json );
+		
+		$this->forma = $this->getForma( $this->json->form->fields );
+		
+		$this->forma_directory = $this->getForma_directory( $this->forma );
+		
+		/*
+		echo '<h3>Forma Explicit Definiton Directory:</h3>';
+		var_dump( $this->forma_directory );
+		*/
+		
+		$this->form_fields = $this->getForma_fields();
+		
+		echo '<h3>Form Fields:</h3>';
+		var_dump( $this->form_fields );
+		
+		// $this->forma_fields_defined = $this->getFields_explicit( $this->formas );
+	}
 	
 	
 	public function render() {
 	
-		$fields_p = $this->getField_paths( $this->json->form->fields );
+		$this->getFields( $this->form_fields );
 		
-		$this->forma = $fields_p;
-		
-		$fields_l = $this->getField_limits( $fields_p );
-			
 		/** assumes 'form' property exists in JSON Forma object */
+		/*
 		foreach( $this->json->form->fields as $field_meta ) {
 		
 			$field_id = $this->getField_id( $field_meta );
 			
+			
 			$field_path_def = $fields_p[ $field_id ]['def'];
+			
 			
 			if ( empty( $fields_p[ $field_id ]['dest'] ) ) {
 				
@@ -36,23 +65,31 @@ class TW_JsonForma extends TW_JsonSchema
 				$field_path_dest = $fields_p[ $field_id ]['dest'];
 			}
 			
-			$f = $this->getFieldData( $field_path_def , $this->json );
+			
+			$f = $this->getField_schema( $field_path_def );
+			
 			
 			if ( is_object( $f ) ) {
 				
 				if ( $this->hasProperties( $f ) ) {
 					
-					$f_iter = $this->setupIterator( $f->properties );
+					$f_iter = $this->getIterator( $f->properties );
 					
 					foreach( $f_iter as $k => $v ) {
 					
+						//var_dump($v);
+					
 						if ( $this->isField( $v ) ) {
 						
-							$field_loc = $this->setFieldPath( $field_path_dest , $k , $f_iter->getDepth() , $f_iter );
+							//var_dump($v);
+						
+							$field_loc = $this->getField_path( $field_path_dest , $k , $f_iter->getDepth() , $f_iter );
 							
 							if ( !in_array( implode( '.' , $field_loc) , $fields_l ) ) {
 							
-								$field = array( "name" => $k , "def" => $v , "params" => $field_meta );
+								//$field = array( "name" => $k , "def" => $v , "params" => $field_meta );
+								
+								$field = array( "path" => $field_loc , "schema" => $v );
 								
 								$field_html = $this->getField( $field );
 								
@@ -63,13 +100,15 @@ class TW_JsonForma extends TW_JsonSchema
 					
 				} else {
 					
-					$field = array( "name" => $field_path_def[ count($field_path_def)-1 ] , "def" => $f , "params" => $field_meta );
+					//$field = array( "name" => $field_path_def[ count($field_path_def)-1 ] , "def" => $f , "params" => $field_meta );
+					
+					$field = array( "path" => $field_path_def , "schema" => $f );
 					
 					//var_dump($field);
 					
-					$field_html = $this->getField( $field );
+					$html = $this->getField( $field );
 					
-					$this->setField( $field_path_dest , $this->fields , $field_path_def[ count($field_path_def)-1 ] , $field_html  );
+					$this->setField( $field_path_dest , $this->fields , $field_path_def[ count($field_path_def)-1 ] , $html  );
 				}
 				
 			} else {
@@ -77,79 +116,235 @@ class TW_JsonForma extends TW_JsonSchema
 				echo '<p>Field should be an object.</p>';
 			}
 		}
+		*/
 		
+		/*
 		$form = json_encode($this->fields);
 		$form = json_decode($form);
 		
-		var_dump($form);
+		//var_dump($form);
 		
-		$form_iter = $this->setupIterator( $form , 'RecursiveArrayIterator' , 'RecursiveIteratorIterator' , 'CHILD_FIRST' );
-		
-		$forma = $this->json->form->fields;
-		
-		//var_dump($fields_p);
-		
+		// setup iterator to collapse fields into groups and collections
+		$form_iter = $this->getIterator( $form , 'RecursiveArrayIterator' , 'RecursiveIteratorIterator' , 'CHILD_FIRST' );
+				
+		// loop over iterator looking for groups and collections to collapse
 		foreach ( $form_iter as $k => $v ) {
 			
+			// reset variable that stores html string from previous loop
 			$html = '';
 			
-			$path = implode( '.' , $this->setFieldPath( array() , $k , $form_iter->getDepth() , $form_iter ) );
+			// establish the path to find the forma params for the field we are on
+			$path_array = $this->getField_path( array() , $k , $form_iter->getDepth() , $form_iter );
+			$path = implode( '.' , $path_array );
+			$path_parent = implode( '.' , array_splice( $path_array , 0 , -1 ) );
 			
-			$tags['group'] = $this->getTags( $path , 'group' );
-			$tags['collection'] = '';
+			$tags['group'] = $this->getTags( $path , 'group' , $form_iter->getDepth() );
+			$tags['collection'] = $this->getTags( $path , 'collection' );
 			
+			//var_dump($path);
+			//var_dump($form_iter->getDepth());
+			//var_dump($k);
+			//var_dump($v);
 			
-			var_dump($form_iter->getDepth());
-			var_dump($k);
-			var_dump($v);
-				
-			/** this should wrap collections not groups */
-			if ( $form_iter->getDepth() == 0 ) {
-			
-				echo 'There are ' . count( (array)$v ) . ' element(s) in this object';
+			// collapse any groups below the root level
+			if ( $form_iter->getDepth() > 0 ) {
 				
 				if ( is_object( $v ) ) {
 					
-					foreach ( $v as $value ) {
+					//var_dump( $path );
+					
+					if ( $this->is_fieldGrouped( $path ) ) {
 						
-						$html .= $value;
+						//echo '<p>Fields will be grouped as a single unit.</p>';
+						
+						// collapse fields
+						foreach ( $v as $value ) {
+							
+							$html .= $value;
+						}
+						
+						if ( !empty( $tags['group'] ) ) {
+						
+							$html = $tags['group']['open'] . $html . $tags['group']['close'];
+						}
+						
+					} else {
+						
+						//echo '<p>Fields will be grouped as individual elements.</p>';
+						
+						// collapse fields
+						foreach ( $v as $value ) {
+							
+							if ( !empty( $tags['group'] ) ) {
+						
+								$value = $tags['group']['open'] . $value . $tags['group']['close'];
+							}
+							
+							$html .= $value;
+						}
 					}
 					
-				} else {
+					// the parent should determine if the field should be grouped as unit or individually
 					
-					$html = $v;
+					$form_iter->getSubIterator($form_iter->getDepth())->offsetSet( $k , $html );
 				}
 				
-				if ( !empty( $tags['group'] ) ) {
-						
-					$html = $tags['group']['open'] . $html . $tags['group']['close'];
-				}
-				
-			} else {
+			} elseif ( $form_iter->getDepth() == 0 ) {
 				
 				if ( is_object( $v ) ) {
 					
-					foreach ( $v as $value ) {
+					//var_dump( $path );
+					
+					if ( $this->is_fieldGrouped( $path ) ) {
 						
-						$html .= $value;
+						//echo '<p>Fields will be grouped as a single unit.</p>';
+						
+						// collapse fields
+						foreach ( $v as $value ) {
+							
+							$html .= $value;
+						}
+						
+						if ( !empty( $tags['group'] ) ) {
+						
+							$html = $tags['group']['open'] . $html . $tags['group']['close'];
+						}
+						
+					} else {
+						
+						//echo '<p>Fields will be grouped as individual elements.</p>';
+						
+						// collapse fields
+						foreach ( $v as $value ) {
+							
+							if ( !empty( $tags['group'] ) ) {
+						
+								$value = $tags['group']['open'] . $value . $tags['group']['close'];
+							}
+							
+							$html .= $value;
+						}
 					}
 					
-					$html = '<dl>' . $html . '</dl>';
+					if ( !empty( $tags['collection'] ) ) {
+						
+						$html = $tags['collection']['open'] . $html . $tags['collection']['close'];
+					}
 					
-				} else {
+					// the parent should determine if the field should be grouped as unit or individually
 					
-					$html = $v;
+					$form_iter->getSubIterator($form_iter->getDepth())->offsetSet( $k , $html );
+					
+				} elseif ( is_string( $v ) ) {
+					
+					
+					if ( !empty( $tags['group'] ) ) {
+					
+						$html = $tags['group']['open'] . $v . $tags['group']['close'];
+					}
+					
+					if ( !empty( $tags['collection'] ) ) {
+						
+						$html = $tags['collection']['open'] . $html . $tags['collection']['close'];
+					}
+					
+					$form_iter->getSubIterator($form_iter->getDepth())->offsetSet( $k , $html );
 				}
 			}
-			
-			
-			
-			$form_iter->getSubIterator($form_iter->getDepth())->offsetSet( $k , $html );
 		}
+		
+		//var_dump( iterator_to_array( $form_iter->getInnerIterator() ) );
 		
 		echo implode( iterator_to_array( $form_iter->getInnerIterator() ) );
 		
+		*/
+		
 	}
+	
+	
+	private function getFields_collapseGroups() {
+		
+		
+	}
+	
+	
+	private function getFields_collapseCollections() {
+		
+		
+	}
+	
+	public function getForm() {
+		
+		
+	}
+	
+	
+	/**
+	 * Get Fields
+	 *
+	 *
+	 */
+	private function getFields( $fields ) {
+		
+		foreach ( $fields as $id => $field ) {
+			
+			// setup variables
+			
+			$html = $this->getField( $field );
+			
+			var_dump($html);
+			
+			// set field
+			
+			$this->setField( $field[ "path_scheme" ] , $this->fields , $field["path_scheme"][ count($field["path_scheme"])-1 ] , $html  );
+		}
+	}
+	
+	
+	private function setField( $field_path , &$fields , $field_key , $field ) {
+		
+		foreach ( $field_path as $index => $path ) {
+		
+			if ( !array_key_exists( $path , $fields ) ) {
+				
+				$fields[ $path ] = array();
+			}
+			
+			$fields =& $fields[ $path ];
+			
+			if ( $index === count( $field_path ) - 1 ) {
+				
+				$fields = $field;
+			}
+		}
+		
+		return true;
+	}
+	
+	
+	/**
+	 * Determines if a group of fields should be wrapped as a complete unit or as individual elements
+	 */
+	private function is_fieldGrouped( $path ) {
+	
+		if ( array_key_exists( $path , $this->forma ) ) {
+		
+			$forma = $this->forma[ $path ];
+			
+			if ( property_exists( $forma['params'] , 'group' ) ) {
+				
+				$forma_params = $forma['params']->group;
+				
+				if ( !$forma_params ) {
+					
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
 	
 	/**
 	 * types of tags
@@ -159,7 +354,7 @@ class TW_JsonForma extends TW_JsonSchema
 	 * tag_label - Label Tag - wraps a input field label - default: <dt> ( could also be <li> )
 	 * tag_input - Input Tag - wraps a input field - default: <dd> ( could also be <li> )
 	 */
-	private function getTags( $forma , $tag_type ) {
+	private function getTags( $forma , $tag_type , $depth = 0 ) {
 		
 		$tags = array();
 		
@@ -178,10 +373,12 @@ class TW_JsonForma extends TW_JsonSchema
 				break;
 			
 			case 'group':
-				$tags = $this->getTags_group( $forma );
+				$tags = $this->getTags_group( $forma , $depth );
 				break;
 				
 			case 'collection':
+				$path = $forma;
+				$tags = $this->getTags_collection( $path , $depth );
 				break;
 			
 		}
@@ -260,24 +457,38 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
-	private function getTags_group( $forma_path ) {
+	private function getTags_group( $path , $depth = 0 ) {
 		
 		$tag_group = array();
 		
 		$tag = '';
 		
-		if ( array_key_exists( $forma_path , $this->forma ) ) {
+		/**
+		 * tags can appear in one of three locations:
+		 * 1. explicitly named in a child params object of the given path
+		 * 2. if the field was regrouped then the path will match an imploded 'dest' string
+		 * 3. inherited from the parent object
+		 */
+		
+		// checks all three places for params matching the group
+		 
+		$params = $this->getField_params( $path );
+		
+		if ( property_exists( $params , 'tag_group' ) ) {
 			
-			if ( property_exists( $this->forma[ $forma_path ]['params'] , 'tag_group' ) ) {
-				
-				$tag = $this->forma[ $forma_path ]['params']->tag_group;
-				
-			}
+			$forma_tag_group = $params->tag_group;
+			
+			$tag = $forma_tag_group;
+			
 		}
 		
-		if ( empty( $tag ) ) {
+		/**
+		 * sets default group tag for root level field elements
+		 * returns an empty array otherwise
+		 */
+		if ( empty( $tag ) && $depth == 0 ) {
 			
-			$tag = 'fieldset';
+			$tag = 'dl';
 		}
 		
 		if ( $tag ) {
@@ -287,6 +498,125 @@ class TW_JsonForma extends TW_JsonSchema
 		}
 		
 		return $tag_group;
+	}
+	
+	
+	/**
+	 * Method assumes every Forma object has a 'params' object
+	 * expects path to be an array
+	 * is this only used by the getFields_collapseGroups() method
+	 */
+	private function getField_params( $path ) {
+		
+		//var_dump($path);
+		
+		echo '<p>Attempting to locate field paramters in Formas object using path: <pre><strong>' . implode( '.' , $path ) . '</strong></pre></p>';
+		
+		// setup variables
+		
+		$params = new stdClass;
+		
+		$formas = $this->formas;
+		
+		if ( is_array( $path ) ) {
+			$path_string = implode( '.' , $path );
+		} else {
+			$path_string = $path;
+		}
+		
+		
+		$is_regrouped = $this->is_fieldReGrouped( $path_string );
+		
+		
+		if ( $is_regrouped ) {
+			
+			$path = $is_regrouped;
+			
+			$params = $formas[ $path ]['params'];
+			
+		} elseif ( array_key_exists( $path_string , $formas ) ) {
+			
+			$params = $formas[ $path_string ]['params'];
+			
+		} else {
+			
+			$path = array_splice( $path , 0 , -1 );
+			
+			if ( !empty( $path ) ) {
+				
+				$params = $this->getField_params( $path );
+			}
+		}
+		
+		//var_dump($params);
+		
+		return $params;
+	}
+	
+	
+	private function is_fieldReGrouped( $path ) {
+		
+		if ( is_array( $path ) ) {
+			$path = implode( '.' , $path );
+		}
+		
+		$a_forma = $this->formas;
+		
+		foreach( $a_forma as $forma ) {
+			
+			$forma_path = implode( '.' , $forma['dest'] );
+			
+			if ( $path == $forma_path ) {
+				
+				return implode( '.' , $forma['def'] );
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	private function getTags_collection( $path , $depth = 0 ) {
+		
+		$tag_collection = array();
+		
+		$tag = '';
+		
+		if ( array_key_exists( $path , $this->forma ) ) {
+		
+			$forma = $this->forma[ $path ];
+			
+			if ( property_exists( $forma['params'] , 'tag_collection' ) ) {
+			
+				$forma_tag_collection = $forma['params']->tag_collection;
+				
+				if ( is_string( $forma_tag_collection ) ) {
+				
+					$tag = $forma_tag_collection;
+					
+				} elseif ( $forma_tag_collection === true ) {
+					
+					$tag = 'fieldset';	
+				}
+				
+			} else {
+				
+				$tag = 'fieldset';
+			}
+			
+		} else {
+			
+			$tag = 'fieldset';
+			
+		}
+		
+		if ( $tag ) {
+			
+			$tag_collection['open'] = '<' . $tag . '>';
+			$tag_collection['close'] = '</' . $tag . '>';
+		}
+		
+		return $tag_collection;
 	}
 	
 	
@@ -308,17 +638,62 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
+	/**
+	 *
+	 */
 	private function getField( $field ) {
 	
-		//var_dump( $field );
+		// setup variables
+		
+		/*
+		echo '<h3>Field Definition</h3>:';
+		var_dump( $field );
+		*/
 		
 		$f_html = '';
-	
-		/** create a isFieldDef() function to determine that all parts are present */
+		
+		//$params = new stdClass;
+		
+		
+		// get Field paramaters
+		/*
+		if ( array_key_exists( 'path' , $field ) ) {
+		
+			$params = $this->getField_params( $field['path'] );
+		}
+		*/
+		/*
+		echo '<h3>Field Parameters</h3>:';
+		var_dump($params);
+		*/
+		
+		// add params to the Field array
+		
+		//$field['params'] = $params;
+		
+		/*
+		echo '<h3>Redefined Field Array:</h3>';
+		var_dump($field);
+		*/
+		
+		// determine field type
+		
+		// create a isFieldDef() function to determine that all parts are present
 	
 		$field_type = $this->getField_type( $field );
 		
+		
+		/*
+		echo '<h3>Field Type:</h3>';
+		var_dump( $field_type );
+		*/
+		
+		// get opening and closing tags for label/input pairs
+		
 		$tags['pair'] = $this->getTags( $field['params'] , 'pair' );
+		
+		
+		// select method for designing form field based on field type
 		
 		switch( $field_type ) {
 		
@@ -338,6 +713,7 @@ class TW_JsonForma extends TW_JsonSchema
 				$f_html = '<p>I don\'t understand this field type.</p>';
 		}
 		
+		// wrap collapsed label/input pair in tags if present, simply collapse if not
 		
 		if ( !empty( $tags['pair'] ) ) {
 			
@@ -350,99 +726,174 @@ class TW_JsonForma extends TW_JsonSchema
 				$f_html = implode( $f_html );
 			}
 		}
-				
+		
+		
+		// return field HTML to calling method
+			
 		return $f_html;
 	}
 	
 	
-	private function getField_paths( $fields ) {
+	
+	private function getForma( $forma ) {
+	
+		// check to ensure Forma object is valid
 		
-		$field_paths = array();
+		return $forma;
+	}
+	
+	
+	private function getForma_fields() {
 		
-		foreach( $fields as $field ) {
+		$fields = array();
 		
-			$key = $this->getField_id( $field );
+		foreach( $this->forma as $formi ) {
+		
+			$id = $this->getField_id( $formi );    // could this use getField_path() method?
 			
-			$definition_path = $this->setFieldPath( $field );
+			$path_scheme = $this->getField_path( $formi );
 			
-			$field_paths[ $key ][ 'def' ] = $definition_path;
+			$scheme = $this->getField_scheme( $path_scheme );
 			
-			if ( is_object( $field ) ) {
+			/*
+			echo '<h3>Formi:</h3>';
+			var_dump( $formi );
+			
+			echo '<h3>Scheme:</h3>';
+			var_dump( $scheme );
+			*/
+			
+			// package field information
+			
+			if ( is_object( $scheme ) ) {    // sanity check to ensure field is an object
 				
-				if ( property_exists( $field , 'regroup' ) ) {
+				if ( $this->hasProperties( $scheme ) ) {    //sanity check to ensure there are properties to iterate over
+				
+					/*
+					 * Uses SPL Iterators to loop through because it would have
+					 * otherwise required a recursive function. This allows the 
+					 * loop to remain inline.
+					 *
+					 * Can the foreach loop be moved to a subclassed Iterator?
+					 */
 					
-					$destination_path = $this->setFieldPath( $field->regroup );
+					// only want to work singular objects, not its properties
 					
-					if ( $destination_path ) {
+					$scheme_iterator = $this->getIterator( $scheme->properties );
+					
+					foreach( $scheme_iterator as $id => $scheme ) {
 						
-						$field_paths[ $key ][ 'dest' ] = $destination_path;
+						if ( $this->isField( $scheme ) ) {
+						
+							$path = $this->getField_path( $path_scheme , $id , $scheme_iterator->getDepth() , $scheme_iterator );
+							
+							if ( !in_array( implode( '.' , $path ) , $this->forma_directory ) ) {
+								
+								$fields[ implode( '.' , $path ) ] = array( "path_scheme" => $path , "path" => $path , "scheme" => $scheme , "params" => $formi );
+							}
+						}
 					}
 					
 				} else {
 					
-					$field_paths[ $key ][ 'dest' ] = array();
+					$fields[ $id ] = array( "path_scheme" => $path_scheme , "scheme" => $scheme , "params" => $formi );
 				}
-				
-				$field_paths[ $key ]['params'] = $field;
 				
 			} else {
 				
-				$field_paths[ $key ][ 'dest' ] = array();
-				
-				$field_paths[ $key ]['params'] = new stdClass();
+				// log a WP_Error because $field should be an object
 			}
 			
 			
+			
+			
+			/*
+			if ( is_object( $formi ) ) {
+				
+				if ( property_exists( $formi , 'regroup' ) ) {
+					
+					$path_field = $this->getField_path( $formi->regroup );
+					
+					if ( $path_field ) {
+						
+						$fields[ $id ]['path_field'] = $path_field;
+					}
+					
+				} else {
+					
+					$fields[ $id ]['path_field'] = $path_scheme;
+				}
+				
+				// $fields[ $id ]['params'] = $formi;
+				
+			} else {
+				
+				$fields[ $id ]['path_field'] = $path_scheme;
+				
+				// $fields[ $id ]['params'] = new stdClass();
+			}
+			*/
 		}
 		
-		return $field_paths;
+		return $fields;
 	}
 	
-	
-	private function getField_limits( $field_paths ) {
+	/**
+	 * Get collection of fields that are explicitly defined by the Formas.
+	 * Prevents them from being redefined by the default Schema definition.
+	 */
+	private function getForma_directory( $forma ) {
 		
-		$field_limits = array();
+		$listing = array();
 		
-		foreach ( $field_paths as $path ) {
+		foreach ( $forma as $formi ) {
+		
+			$path = $this->getField_path( $formi );
 			
-			$c = count( $path['def'] );
-			
-			if ( $c > 1 ) {
+			if ( count( $path ) > 1 ) {
 				
-				$field_limits[] = implode( '.' , $path['def'] );
+				$listing[] = implode( '.' , $path );
 			}
 		}
 		
-		return $field_limits;
+		return $listing;
 	}
 	
 	
 	/** get the name/id of the field to find it's path */
+	/**
+	 * mixed $field
+	 */
 	private function getField_id ( $field ) {
 		
-		$f_id = '';
+		$id = '';
 		
 		if ( is_object( $field ) ) {
+		
+			// assumes key property is present because it doesn't provide an else
 					
 			if ( property_exists( $field , 'key' ) ) {
 				
-				$f_id = $field->key;
+				$id = $field->key;
 			}
 			
 		} elseif ( is_string( $field ) ) {
 		
 			if ( $field === '*' ) {
 				
-				$f_id = 'all';
+				$id = 'all';
 				
 			} else {
 			
-				$f_id = $field;
+				$id = $field;
 			}
 			
+		} else {
+			
+			$id = 'No ID';
 		}
 		
-		return $f_id;		
+		return $id;		
 	}
 	
 	
@@ -457,13 +908,13 @@ class TW_JsonForma extends TW_JsonSchema
 			
 		} else {
 			
-			if ( property_exists( $field['def'] , 'type' ) ) {
+			if ( property_exists( $field['scheme'] , 'type' ) ) {
 			
-				$type = $field['def']->type;
+				$type = $field['scheme']->type;
 				
 				if ( $type == 'string' || $type == 'number' || $type == 'integer' ) {
 					
-					if ( property_exists( $field['def'] , 'enum' ) ) {
+					if ( property_exists( $field['scheme'] , 'enum' ) ) {
 						
 						$field_type = 'select';
 						
@@ -493,7 +944,7 @@ class TW_JsonForma extends TW_JsonSchema
 		$html = array();
 		$tags = array();
 		
-		$id = $field['name'];
+		$id = array_pop( $field['path_scheme'] );
 		
 		$tags['input'] = $this->getTags( $field['params'] , 'input' );
 		
@@ -539,13 +990,6 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
-	private function getField_tags( $field ) {
-		
-		
-		
-	}
-	
-	
 	private function showLabel( $f_params ) {
 	
 		if ( property_exists( $f_params , 'label' ) ) {
@@ -570,7 +1014,7 @@ class TW_JsonForma extends TW_JsonSchema
 	
 		$html = '';
 		
-		$for_id = $field['name'];
+		$for_id = array_pop( $field['path_scheme'] );
 		
 		$tags = $this->getTags( $field['params'] , 'label' );
 		
@@ -586,13 +1030,13 @@ class TW_JsonForma extends TW_JsonSchema
 				/** redefined label property is not a string **/
 			}
 			
-		} elseif ( property_exists( $field['def'] , 'title' ) ) {
+		} elseif ( property_exists( $field['scheme'] , 'title' ) ) {
 			
-			$label = $field['def']->title;
+			$label = $field['scheme']->title;
 			
 		} else {
 			
-			$label = $field['name'];
+			$label = array_pop( $field['path_scheme'] );
 		}
 		
 		
@@ -609,93 +1053,32 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
-	public static function triageType( $action , $json ) {
-	
-		echo '<div style="background-color : lime ; padding : 10px;"><p>Triaging Form</p>';
-		var_dump( $json );
-		echo '</div>';
+	/**
+	 * Get the path of the given field object (could be a Formi or Schemi)
+	 */
+	private function getField_path( $field , $id = '' , $depth = 0 , $scheme = '{}'  ) {
 		
-		$demo = new TW_JsonExtended( $json , 'object' );
-		
-		var_dump($demo->json);
-		
-		$action = array( 
-			'search' => array( 'method' => 'value' , 'lookup' => 'type' ),
-			'callback' => array( 'TW_Form' , 'handleFieldType' )
-		);
-		
-		$demo->iterate( $action );
-		
-	}
-	
-	public static function handleFieldType( $action , $json ) {
-		
-		echo 'Do something!';
-		var_dump($json);
-		
-		switch ( $json['type'] ) {
-			
-			case 'object':
-				echo 'Rendering a fieldset.<br />';
-				
-				if ( empty( self::$html_form ) ) {
+		if ( is_object( $field ) ) {
 					
-					self::$html_form = '<fieldset><legend>' . $json['forma']['title'] . '</legend>';    // assume fieldset is being created for the first time.
-					
-				} else {
-					
-					self::$html_form .= '</fieldset><fieldset><legend>' . $json['forma']['title'] . '</legend>';
-					
-				}
+			if ( property_exists( $field , 'key' ) ) {
 				
-				$test = new TW_JsonExtended( $json['forma']['properties'] , 'object' );
-				
-				$object_action = array( 
-					'search' => array( 'method' => 'value' , 'lookup' => 'type' ),
-					'callback' => array( 'TW_Form' , 'handleFieldType' )
-				);
-				
-				$test->iterate( $object_action );
-				
-				break;
-			
-			case 'string':
-				echo 'Rendering a text field.<br />';
-				
-				self::$html_form .= $json['forma']['title'] . ': <input type="text" id="" name="" placeholder="" value="" /><br />';
-				
-				break;
-				
-			default:
-				echo 'I haven\'t learned how to deal with this field type yet<br />';
-		}
-		
-	}
-	
-	
-	private function setFieldPath( $f_meta , $field_key = '' , $depth = 0 , $json = '{}'  ) {
-		
-		if ( is_object( $f_meta ) ) {
-					
-			if ( property_exists( $f_meta , 'key' ) ) {
-				
-				$f_path = explode( '.' , $f_meta->key );
+				$path = explode( '.' , $field->key );
 			}
 			
-		} elseif ( is_string( $f_meta ) ) {
+		} elseif ( is_string( $field ) ) {
 		
-			if ( $f_meta === '*' ) {
+			if ( $field === '*' ) {
 				
-				$f_path = array();
+				$path = array();
 				
 			} else {
 			
-				$f_path = explode( '.' , $f_meta );
+				$path = explode( '.' , $field );
 			}
 			
-		} elseif ( is_array( $f_meta ) ) {
+		} elseif ( is_array( $field ) ) {
 			
-			$f_path = $f_meta;
+			$path = $field;
 			
 			$d = 0;
 			do {
@@ -704,14 +1087,14 @@ class TW_JsonForma extends TW_JsonSchema
 					$d = $d + 1;
 				}
 				
-				$f_path[] = $json->getSubIterator( $d )->key();
+				$path[] = $scheme->getSubIterator( $d )->key();
 				$d = $d + 1;
 				
 			} while ( $d < $depth );
 			
-			if ( $f_path[ count( $f_path ) - 1 ] !== $field_key ) {
+			if ( $path[ count( $path ) - 1 ] !== $id ) {
 				
-				$f_path[] = $field_key;
+				$path[] = $id;
 			}
 		
 		} else {
@@ -721,32 +1104,39 @@ class TW_JsonForma extends TW_JsonSchema
 		
 		/** add code to return a string form of the path */
 		
-		return $f_path;
+		return $path;
 	}
 	
-	
-	private function getFieldData( $field_path , $json_s ) {
+	/**
+	 *
+	 * @param array $path Each array element is a pointer towards the Schema object
+	 */
+	private function getField_scheme( $path ) {
 		
-		if ( $this->hasSchema( $json_s ) ) {
+		if ( $this->hasSchema( $this->json ) ) {    // sanity check to ensure Schema object is present
 		
-			$f_data = $json_s->schema;
+			$schema = $this->json->schema;
 			
-			// return this is path is equal to *
+			// return this if path is equal to *
 			
-			foreach( $field_path as $pointer ) {
+			foreach( $path as $segment ) {
 				
-				if ( $this->hasProperties( $f_data ) ) {
+				if ( $this->hasProperties( $schema ) ) {    // sanity check to ensure there are properties to retrieve
 					
-					$f_data = $f_data->properties->$pointer;
+					$schema = $schema->properties->$segment;
+					
+				} else {    // could not drill down further because next segment doesn't have any properties
+					
+					return $schema;
 				}
 			}
 			
 		} else {
 			
-			echo '<p>Can\'t find schema object.</p>';
+			// log a WP_Error because Schema object could not be found
 		}
 		
-		return $f_data;
+		return $schema;
 	}
 }
 
