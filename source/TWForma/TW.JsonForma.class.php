@@ -262,6 +262,23 @@ class TW_JsonForma extends TW_JsonSchema
 	}
 	
 	
+	private function getFields_collapseGroups() {
+		
+		
+	}
+	
+	
+	private function getFields_collapseCollections() {
+		
+		
+	}
+	
+	public function getForm() {
+		
+		
+	}
+	
+	
 	/**
 	 * Get Fields
 	 *
@@ -281,12 +298,6 @@ class TW_JsonForma extends TW_JsonSchema
 			
 			$this->setField( $field[ "path_scheme" ] , $this->fields , $field["path_scheme"][ count($field["path_scheme"])-1 ] , $html  );
 		}
-	}
-	
-	
-	private function getFields_group() {
-		
-		
 	}
 	
 	
@@ -458,6 +469,8 @@ class TW_JsonForma extends TW_JsonSchema
 		 * 2. if the field was regrouped then the path will match an imploded 'dest' string
 		 * 3. inherited from the parent object
 		 */
+		
+		// checks all three places for params matching the group
 		 
 		$params = $this->getField_params( $path );
 		
@@ -491,6 +504,7 @@ class TW_JsonForma extends TW_JsonSchema
 	/**
 	 * Method assumes every Forma object has a 'params' object
 	 * expects path to be an array
+	 * is this only used by the getFields_collapseGroups() method
 	 */
 	private function getField_params( $path ) {
 		
@@ -775,7 +789,7 @@ class TW_JsonForma extends TW_JsonSchema
 							
 							if ( !in_array( implode( '.' , $path ) , $this->forma_directory ) ) {
 								
-								$fields[ implode( '.' , $path ) ] = array( "path_scheme" => $path , "scheme" => $scheme , "params" => $formi );
+								$fields[ implode( '.' , $path ) ] = array( "path_scheme" => $path , "path" => $path , "scheme" => $scheme , "params" => $formi );
 							}
 						}
 					}
@@ -1036,70 +1050,6 @@ class TW_JsonForma extends TW_JsonSchema
 		
 		
 		return $html;
-	}
-	
-	
-	public static function triageType( $action , $json ) {
-	
-		echo '<div style="background-color : lime ; padding : 10px;"><p>Triaging Form</p>';
-		var_dump( $json );
-		echo '</div>';
-		
-		$demo = new TW_JsonExtended( $json , 'object' );
-		
-		var_dump($demo->json);
-		
-		$action = array( 
-			'search' => array( 'method' => 'value' , 'lookup' => 'type' ),
-			'callback' => array( 'TW_Form' , 'handleFieldType' )
-		);
-		
-		$demo->iterate( $action );
-		
-	}
-	
-	public static function handleFieldType( $action , $json ) {
-		
-		echo 'Do something!';
-		var_dump($json);
-		
-		switch ( $json['type'] ) {
-			
-			case 'object':
-				echo 'Rendering a fieldset.<br />';
-				
-				if ( empty( self::$html_form ) ) {
-					
-					self::$html_form = '<fieldset><legend>' . $json['forma']['title'] . '</legend>';    // assume fieldset is being created for the first time.
-					
-				} else {
-					
-					self::$html_form .= '</fieldset><fieldset><legend>' . $json['forma']['title'] . '</legend>';
-					
-				}
-				
-				$test = new TW_JsonExtended( $json['forma']['properties'] , 'object' );
-				
-				$object_action = array( 
-					'search' => array( 'method' => 'value' , 'lookup' => 'type' ),
-					'callback' => array( 'TW_Form' , 'handleFieldType' )
-				);
-				
-				$test->iterate( $object_action );
-				
-				break;
-			
-			case 'string':
-				echo 'Rendering a text field.<br />';
-				
-				self::$html_form .= $json['forma']['title'] . ': <input type="text" id="" name="" placeholder="" value="" /><br />';
-				
-				break;
-				
-			default:
-				echo 'I haven\'t learned how to deal with this field type yet<br />';
-		}
-		
 	}
 	
 	
