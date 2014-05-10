@@ -1,0 +1,3 @@
+[submodule "docs/form-factory.wiki"]
+	path = docs/form-factory.wiki
+	url = git@github.com:thingwone/form-factory.wiki.git
